@@ -32,6 +32,7 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
   const [chatInput, setChatInput] = useState("")
   const [chatMessages, setChatMessages] = useState<Message[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [screenContext, setScreenContext] = useState(false)
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
 
   const listener = useListener((text, at) => {
@@ -63,7 +64,9 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
     setChatLoading(true)
     setChatInput("")
     try {
-      const response = await window.electronAPI.invoke("gemini-chat", withTranscript(prompt))
+      // When screen-context is on, attach a capture of the screen to the ask.
+      const channel = screenContext ? "ask-with-screen" : "gemini-chat"
+      const response = await window.electronAPI.invoke(channel, withTranscript(prompt))
       setChatMessages((msgs) => [...msgs, { role: "gemini", text: response }])
     } catch (err) {
       setChatMessages((msgs) => [...msgs, { role: "gemini", text: "Error: " + String(err) }])
@@ -88,25 +91,7 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
         setView("queue")
         console.error("Processing error:", error)
       }),
-      window.electronAPI.onProcessingNoScreenshots(() => showToast("No Screenshots", "There are no screenshots to process.", "neutral")),
-      // Cmd+H: analyze the screenshot straight away
-      window.electronAPI.onScreenshotTaken(async (data: any) => {
-        await refetch()
-        setChatOpen(true)
-        setPanelView("chat")
-        setChatLoading(true)
-        try {
-          const latest = data?.path || (Array.isArray(data) && data[data.length - 1]?.path)
-          if (latest) {
-            const response = await window.electronAPI.invoke("analyze-image-file", latest)
-            setChatMessages((msgs) => [...msgs, { role: "gemini", text: response.text }])
-          }
-        } catch (err) {
-          setChatMessages((msgs) => [...msgs, { role: "gemini", text: "Error: " + String(err) }])
-        } finally {
-          setChatLoading(false)
-        }
-      })
+      window.electronAPI.onProcessingNoScreenshots(() => showToast("No Screenshots", "There are no screenshots to process.", "neutral"))
     ]
     return () => {
       resizeObserver.disconnect()
@@ -157,22 +142,8 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
           view={panelView}
           setView={setPanelView}
           onNewChat={() => setChatMessages([])}
-          onScreenshot={async () => {
-            // Self-contained: capture, then analyze, surfacing any error so it's never silent.
-            setChatOpen(true)
-            setPanelView("chat")
-            setSettingsOpen(false)
-            setChatLoading(true)
-            try {
-              const shot = await window.electronAPI.takeScreenshot()
-              const response = await window.electronAPI.invoke("analyze-image-file", shot.path)
-              setChatMessages((msgs) => [...msgs, { role: "gemini", text: response.text }])
-            } catch (err) {
-              setChatMessages((msgs) => [...msgs, { role: "gemini", text: "Screenshot failed: " + String(err) }])
-            } finally {
-              setChatLoading(false)
-            }
-          }}
+          screenContext={screenContext}
+          onToggleScreenContext={() => setScreenContext((v) => !v)}
           settingsOpen={settingsOpen}
           onToggleSettings={() => setSettingsOpen((o) => !o)}
           onModelChange={(provider, model) => setChatMessages((msgs) => [...msgs, { role: "gemini", text: `Switched to ${provider}: ${model}.` }])}

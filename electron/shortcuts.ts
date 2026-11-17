@@ -15,22 +15,7 @@ export class ShortcutsHelper {
       this.appState.centerAndShowWindow()
     })
 
-    globalShortcut.register("CommandOrControl+H", async () => {
-      const mainWindow = this.appState.getMainWindow()
-      if (mainWindow) {
-        console.log("Taking screenshot...")
-        try {
-          const screenshotPath = await this.appState.takeScreenshot()
-          const preview = await this.appState.getImagePreview(screenshotPath)
-          mainWindow.webContents.send("screenshot-taken", {
-            path: screenshotPath,
-            preview
-          })
-        } catch (error) {
-          console.error("Error capturing screenshot:", error)
-        }
-      }
-    })
+    // Cmd+H screenshot removed: the screen is attached via the screen-context toggle instead.
 
     globalShortcut.register("CommandOrControl+Enter", async () => {
       await this.appState.processingHelper.processScreenshots()

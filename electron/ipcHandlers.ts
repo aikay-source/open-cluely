@@ -1,6 +1,7 @@
 // ipcHandlers.ts
 
 import { ipcMain, app } from "electron"
+import fs from "fs"
 import { AppState } from "./main"
 
 export function initializeIpcHandlers(appState: AppState): void {
@@ -115,6 +116,13 @@ export function initializeIpcHandlers(appState: AppState): void {
       console.error("Error in gemini-chat handler:", error);
       throw error;
     }
+  });
+
+  // Ask with the current screen attached (screen-context toggle ON).
+  ipcMain.handle("ask-with-screen", async (event, message: string) => {
+    const screenshotPath = await appState.takeScreenshot()
+    const imageBase64 = (await fs.promises.readFile(screenshotPath)).toString("base64")
+    return appState.processingHelper.getLLMHelper().askWithImage(message, imageBase64)
   });
 
   ipcMain.handle("quit-app", () => {

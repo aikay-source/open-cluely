@@ -51,7 +51,8 @@ interface Props {
   view: "chat" | "transcript"
   setView: (v: "chat" | "transcript") => void
   onNewChat: () => void
-  onScreenshot: () => void
+  screenContext: boolean
+  onToggleScreenContext: () => void
   settingsOpen: boolean
   onToggleSettings: () => void
   onModelChange: (provider: "ollama" | "gemini", model: string) => void
@@ -226,11 +227,6 @@ const ChatPanel: React.FC<Props> = (p) => {
               <span className="shrink-0 text-white/46">Press</span>
               <span className="inline-flex shrink-0 items-center gap-0.5">
                 <Kbd outline>⌘</Kbd>
-                <Kbd outline>H</Kbd>
-              </span>
-              <span className="shrink-0 text-white/46">to screenshot or</span>
-              <span className="inline-flex shrink-0 items-center gap-0.5">
-                <Kbd outline>⌘</Kbd>
                 <Kbd outline>B</Kbd>
               </span>
               <span className="min-w-0 truncate text-white/46">to hide</span>
@@ -238,7 +234,15 @@ const ChatPanel: React.FC<Props> = (p) => {
           </div>
 
           <div className="flex min-w-0 items-center justify-center gap-0.5">
-            <button type="button" aria-label="Analyze screen" title="Take screenshot and analyze" className={ICON_BUTTON} onClick={p.onScreenshot} tabIndex={-1}>
+            <button
+              type="button"
+              aria-label="Use screen as context"
+              aria-pressed={p.screenContext}
+              title={p.screenContext ? "Screen is used as context (on)" : "Use screen as context (off)"}
+              className={`${ICON_BUTTON} ${p.screenContext ? "bg-white/10 text-white" : ""}`}
+              onClick={p.onToggleScreenContext}
+              tabIndex={-1}
+            >
               <LuImage className="size-5" />
             </button>
             <div aria-hidden className="h-5 w-px bg-white/[0.08]" />

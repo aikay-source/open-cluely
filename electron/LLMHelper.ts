@@ -320,6 +320,25 @@ export class LLMHelper {
     return this.chatWithGemini(message);
   }
 
+  // Ask with a screenshot of the screen attached as context (screen-context toggle ON).
+  public async askWithImage(prompt: string, imageBase64: string): Promise<string> {
+    if (this.openai) {
+      return this.callOpenAI([
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } }
+      ]);
+    }
+    if (this.useOllama) {
+      // Ollama text model can't see images; fall back to text-only.
+      return this.callOllama(prompt);
+    }
+    const result = await this.model!.generateContent([
+      `${this.systemPrompt}\n\n${prompt}`,
+      { inlineData: { data: imageBase64, mimeType: "image/png" } }
+    ]);
+    return (await result.response).text();
+  }
+
   public isUsingOllama(): boolean {
     return this.useOllama;
   }
