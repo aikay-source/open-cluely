@@ -5,7 +5,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"]
+        sans: ["-apple-system", "BlinkMacSystemFont", "system-ui", "Segoe UI", "sans-serif"]
       },
       animation: {
         in: "in 0.2s ease-out",

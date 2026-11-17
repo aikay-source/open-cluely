@@ -25,7 +25,7 @@ export class LLMHelper {
       this.initializeOllamaModel()
     } else if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey)
-      this.model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+      this.model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" })
       console.log("[LLMHelper] Using Google Gemini")
     } else {
       throw new Error("Either provide Gemini API key or enable Ollama mode")
@@ -233,6 +233,12 @@ export class LLMHelper {
     }
   }
 
+  public async transcribeAudio(data: string, mimeType: string): Promise<string> {
+    const prompt = "Transcribe this audio word for word. Return only the spoken words. If there is no clear speech, return an empty string."
+    const result = await this.model.generateContent([prompt, { inlineData: { data, mimeType } }])
+    return (await result.response).text().trim()
+  }
+
   public async analyzeImageFile(imagePath: string) {
     try {
       const imageData = await fs.promises.readFile(imagePath);
@@ -298,7 +304,7 @@ export class LLMHelper {
   }
 
   public getCurrentModel(): string {
-    return this.useOllama ? this.ollamaModel : "gemini-2.0-flash";
+    return this.useOllama ? this.ollamaModel : "gemini-3.1-flash-lite";
   }
 
   public async switchToOllama(model?: string, url?: string): Promise<void> {
@@ -318,7 +324,7 @@ export class LLMHelper {
   public async switchToGemini(apiKey?: string): Promise<void> {
     if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey);
-      this.model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      this.model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
     }
     
     if (!this.model && !apiKey) {

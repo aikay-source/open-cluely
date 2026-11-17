@@ -103,6 +103,10 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   })
 
+  ipcMain.handle("transcribe-audio", (event, data: string, mimeType: string) =>
+    appState.processingHelper.getLLMHelper().transcribeAudio(data, mimeType)
+  )
+
   ipcMain.handle("gemini-chat", async (event, message: string) => {
     try {
       const result = await appState.processingHelper.getLLMHelper().chatWithGemini(message);

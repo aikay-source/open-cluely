@@ -43,7 +43,7 @@ export class WindowHelper {
     )
 
     // Ensure width doesn't exceed max allowed width and height is reasonable
-    const newWidth = Math.min(width + 32, maxAllowedWidth)
+    const newWidth = Math.min(width + 32, Math.max(maxAllowedWidth, 722)) // 690px chat panel + margin
     const newHeight = Math.ceil(height)
 
     // Center the window horizontally if it would go off screen
@@ -99,7 +99,7 @@ export class WindowHelper {
 
     this.mainWindow = new BrowserWindow(windowSettings)
     // this.mainWindow.webContents.openDevTools()
-    this.mainWindow.setContentProtection(true)
+    this.mainWindow.setContentProtection(!process.env.ALLOW_CAPTURE) // ALLOW_CAPTURE=1 lets screen tools see the window (dev only)
 
     if (process.platform === "darwin") {
       this.mainWindow.setVisibleOnAllWorkspaces(true, {
@@ -236,7 +236,7 @@ export class WindowHelper {
     
     // Calculate center position
     const centerX = Math.floor((workArea.width - windowWidth) / 2)
-    const centerY = Math.floor((workArea.height - windowHeight) / 2)
+    const centerY = 25 // top of screen, like Cluely
     
     // Set window position
     this.mainWindow.setBounds({
