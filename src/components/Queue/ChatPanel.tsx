@@ -84,7 +84,7 @@ const ChatPanel: React.FC<Props> = (p) => {
           <input
             ref={inputRef}
             className="min-h-14 w-[calc(100%-3.5rem)] bg-transparent py-[18px] pr-2 pl-4 text-[15px] text-white leading-5 outline-none placeholder:font-medium placeholder:text-white/50"
-            placeholder="Ask about your screen or conversation, or ⌘ ↵ for Assist"
+            placeholder={p.screenContext ? "Ask anything about your screen" : "Ask or search anything"}
             value={p.input}
             disabled={p.loading}
             onChange={(e) => p.setInput(e.target.value)}
