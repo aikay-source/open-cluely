@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react"
-import { LuAudioLines, LuCopy, LuCornerDownLeft, LuFileText, LuHistory, LuImage, LuMessageSquare, LuRefreshCw, LuSettings, LuSparkles, LuWandSparkles } from "react-icons/lu"
+import React, { useEffect, useRef, useState } from "react"
+import { LuAudioLines, LuCheck, LuCopy, LuCornerDownLeft, LuFileText, LuHistory, LuImage, LuLayoutGrid, LuMessageSquare, LuRefreshCw, LuSettings, LuSparkles, LuWandSparkles } from "react-icons/lu"
 import ModelSelector from "../ui/ModelSelector"
 import { formatElapsed } from "./useListener"
 
@@ -29,6 +29,42 @@ const Kbd = ({ children, outline }: { children: React.ReactNode; outline?: boole
     {children}
   </span>
 )
+
+// Toolbar mode switcher: shows the active mode and lets you pick another.
+const ModeSwitcher: React.FC = () => {
+  const [modes, setModes] = useState<{ id: string; name: string }[]>([])
+  const [activeId, setActiveId] = useState("")
+  const [open, setOpen] = useState(false)
+  const load = () => window.electronAPI.invoke("modes-get").then((s: any) => { setModes(s.modes); setActiveId(s.activeId) })
+  useEffect(() => { load() }, [])
+  const activeName = modes.find((m) => m.id === activeId)?.name || "General"
+  return (
+    <div className="relative">
+      <button type="button" aria-label={`Mode: ${activeName}`} title={`Mode: ${activeName}`} className={ICON_BUTTON} onClick={() => { if (!open) load(); setOpen((o) => !o) }} tabIndex={-1}>
+        <LuLayoutGrid className="size-5" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute bottom-full left-1/2 z-40 mb-2 w-48 -translate-x-1/2 rounded-xl border border-white/10 bg-[#1b1f20] p-1 shadow-xl">
+            <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/35">Mode</p>
+            {modes.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => { window.electronAPI.invoke("modes-set-active", m.id); setActiveId(m.id); setOpen(false) }}
+                className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] text-white/85 hover:bg-white/[0.08]"
+              >
+                <span className="truncate">{m.name}</span>
+                {m.id === activeId && <LuCheck className="size-3.5 text-[#0a84ff]" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 interface Props {
   messages: Message[]
@@ -246,6 +282,7 @@ const ChatPanel: React.FC<Props> = (p) => {
             >
               <LuImage className="size-5" />
             </button>
+            <ModeSwitcher />
             <div aria-hidden className="h-5 w-px bg-white/[0.08]" />
             {p.isListening ? (
               <div className="ml-2 flex h-10 items-center justify-center">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import {
   LuSettings,
   LuCalendar,
@@ -11,8 +11,28 @@ import {
   LuEye,
   LuEyeOff,
   LuPower,
-  LuSearch
+  LuSearch,
+  LuPlus,
+  LuPaperclip,
+  LuX,
+  LuCheck,
+  LuFileText
 } from "react-icons/lu"
+
+interface RefFile {
+  name: string
+  text: string
+}
+interface Mode {
+  id: string
+  name: string
+  instructions: string
+  files: RefFile[]
+}
+interface ModesState {
+  modes: Mode[]
+  activeId: string
+}
 
 // Settings window matching Cluely's General screen (classes extracted from its bundle).
 type Page = "general" | "calendar" | "modes" | "shortcuts" | "account" | "security" | "billing" | "about"
@@ -136,6 +156,139 @@ const General: React.FC = () => {
   )
 }
 
+const Modes: React.FC = () => {
+  const [state, setState] = useState<ModesState | null>(null)
+  const [selectedId, setSelectedId] = useState<string>("")
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    window.electronAPI.invoke("modes-get").then((s: ModesState) => {
+      setState(s)
+      setSelectedId(s.activeId || s.modes[0]?.id || "")
+    })
+  }, [])
+
+  // Persist (debounced) whenever modes change.
+  const update = (next: ModesState) => {
+    setState(next)
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => window.electronAPI.invoke("modes-save", next), 400)
+  }
+
+  if (!state) return <div className="px-8 py-6 text-[13px] text-white/40">Loading…</div>
+
+  const selected = state.modes.find((m) => m.id === selectedId) || state.modes[0]
+  const patchSelected = (patch: Partial<Mode>) =>
+    update({ ...state, modes: state.modes.map((m) => (m.id === selected.id ? { ...m, ...patch } : m)) })
+
+  const addMode = () => {
+    const id = crypto.randomUUID()
+    update({ ...state, modes: [...state.modes, { id, name: "New Mode", instructions: "", files: [] }] })
+    setSelectedId(id)
+  }
+  const deleteMode = (id: string) => {
+    if (state.modes.length <= 1) return
+    const modes = state.modes.filter((m) => m.id !== id)
+    const activeId = state.activeId === id ? modes[0].id : state.activeId
+    update({ ...state, modes, activeId })
+    if (selectedId === id) setSelectedId(modes[0].id)
+  }
+  const setActive = (id: string) => {
+    update({ ...state, activeId: id })
+    window.electronAPI.invoke("modes-set-active", id)
+  }
+  const addFile = async () => {
+    const f: RefFile | null = await window.electronAPI.invoke("pick-reference-file")
+    if (f && f.name) patchSelected({ files: [...selected.files, f] })
+  }
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Mode list */}
+      <div className="w-[200px] shrink-0 overflow-y-auto border-r border-white/[0.06] px-3 py-5">
+        <button type="button" onClick={addMode} className="mb-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium text-white/70 hover:bg-white/[0.05] hover:text-white">
+          <LuPlus className="size-4" /> New Mode
+        </button>
+        {state.modes.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setSelectedId(m.id)}
+            className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${selected.id === m.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+          >
+            <LuSlidersHorizontal className="size-3.5 shrink-0 text-white/45" />
+            <span className="min-w-0 flex-1 truncate text-[13px] text-white/90">{m.name}</span>
+            {state.activeId === m.id && <LuCheck className="size-3.5 shrink-0 text-[#0a84ff]" />}
+          </button>
+        ))}
+      </div>
+
+      {/* Editor */}
+      <div className="min-w-0 flex-1 overflow-y-auto px-7 py-6">
+        <p className="text-[13px] text-white/55">Tailor Open Cluely's responses with instructions and reference files.</p>
+
+        <div className="mt-5">
+          <label className="text-[12px] font-medium text-white/55">Mode name</label>
+          <input
+            value={selected.name}
+            onChange={(e) => patchSelected({ name: e.target.value })}
+            className="mt-1.5 w-full rounded-lg bg-white/[0.05] px-3 py-2 text-[14px] text-white outline-none focus:bg-white/[0.07]"
+          />
+        </div>
+
+        <div className="mt-5">
+          <label className="text-[12px] font-medium text-white/55">Instructions</label>
+          <textarea
+            value={selected.instructions}
+            onChange={(e) => patchSelected({ instructions: e.target.value })}
+            rows={7}
+            placeholder="e.g. I am a candidate in a job interview. Help me answer clearly…"
+            className="mt-1.5 w-full resize-none rounded-xl bg-white/[0.05] px-3.5 py-3 text-[14px] text-white/90 leading-6 outline-none placeholder:text-white/30 focus:bg-white/[0.07]"
+          />
+        </div>
+
+        <div className="mt-5">
+          <label className="text-[12px] font-medium text-white/55">Files</label>
+          <p className="mt-0.5 text-[11px] text-white/35">PDF, text, Markdown, and code files.</p>
+          <div className="mt-2 space-y-2">
+            {selected.files.map((f, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl bg-white/[0.05] px-3 py-2.5">
+                <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.06]">
+                  <LuFileText className="size-4 text-white/60" />
+                </div>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-white/85">{f.name}</span>
+                <button type="button" aria-label="Remove file" onClick={() => patchSelected({ files: selected.files.filter((_, j) => j !== i) })} className="text-white/40 hover:text-white">
+                  <LuX className="size-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={addFile} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 py-2.5 text-[13px] text-white/60 hover:bg-white/[0.03] hover:text-white">
+            <LuPaperclip className="size-4" /> Add reference file
+          </button>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between border-t border-white/[0.08] pt-4">
+          <div>
+            <p className="text-[13px] font-medium text-white/80">Using {selected.name}</p>
+            <p className="text-[11px] text-white/40">This mode guides Open Cluely's responses.</p>
+          </div>
+          {state.activeId === selected.id ? (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0a84ff]"><LuCheck className="size-4" /> Active</span>
+          ) : (
+            <div className="flex items-center gap-2">
+              {state.modes.length > 1 && (
+                <button type="button" onClick={() => deleteMode(selected.id)} className="rounded-lg px-2.5 py-1.5 text-[12px] text-white/45 hover:bg-white/[0.06] hover:text-red-300">Delete</button>
+              )}
+              <button type="button" onClick={() => setActive(selected.id)} className="rounded-lg bg-white/[0.1] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-white/[0.15]">Use this mode</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const Placeholder: React.FC<{ item: (typeof NAV)[number] }> = ({ item }) => (
   <div className="mx-auto w-full max-w-[560px] px-8 py-6">
     <div className="rounded-2xl bg-white/[0.035] px-6 py-7 text-center">
@@ -188,8 +341,14 @@ const Settings: React.FC = () => {
       </aside>
 
       {/* Content */}
-      <main className="min-w-0 flex-1 overflow-y-auto pt-6">
-        {page === "general" ? <General /> : <Placeholder item={active} />}
+      <main className="min-w-0 flex-1 overflow-hidden pt-10">
+        {page === "general" ? (
+          <div className="h-full overflow-y-auto"><General /></div>
+        ) : page === "modes" ? (
+          <Modes />
+        ) : (
+          <div className="h-full overflow-y-auto"><Placeholder item={active} /></div>
+        )}
       </main>
     </div>
   )

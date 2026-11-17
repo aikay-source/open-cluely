@@ -1,9 +1,21 @@
 // ipcHandlers.ts
 
-import { ipcMain, app } from "electron"
+import { ipcMain, app, dialog } from "electron"
 import fs from "fs"
+import path from "path"
 import { AppState } from "./main"
 import { SessionStore, Session } from "./SessionStore"
+import { ModesStore, Mode } from "./ModesStore"
+
+// Extract plain text from a reference file (PDF via pdf-parse, everything else read as text).
+async function extractText(filePath: string): Promise<string> {
+  if (path.extname(filePath).toLowerCase() === ".pdf") {
+    const pdf = require("pdf-parse")
+    const data = await pdf(fs.readFileSync(filePath))
+    return data.text
+  }
+  return fs.readFileSync(filePath, "utf8")
+}
 
 export function initializeIpcHandlers(appState: AppState): void {
   ipcMain.handle(
@@ -109,9 +121,15 @@ export function initializeIpcHandlers(appState: AppState): void {
     appState.processingHelper.getLLMHelper().transcribeAudio(data, mimeType)
   )
 
+  // Prepend the active mode's instructions + reference files to a prompt.
+  const withMode = (message: string) => {
+    const prefix = ModesStore.activePrefix()
+    return prefix ? `${prefix}\n\n---\n\n${message}` : message
+  }
+
   ipcMain.handle("gemini-chat", async (event, message: string) => {
     try {
-      const result = await appState.processingHelper.getLLMHelper().chatWithGemini(message);
+      const result = await appState.processingHelper.getLLMHelper().chatWithGemini(withMode(message));
       return result;
     } catch (error: any) {
       console.error("Error in gemini-chat handler:", error);
@@ -123,8 +141,33 @@ export function initializeIpcHandlers(appState: AppState): void {
   ipcMain.handle("ask-with-screen", async (event, message: string) => {
     const screenshotPath = await appState.takeScreenshot()
     const imageBase64 = (await fs.promises.readFile(screenshotPath)).toString("base64")
-    return appState.processingHelper.getLLMHelper().askWithImage(message, imageBase64)
+    return appState.processingHelper.getLLMHelper().askWithImage(withMode(message), imageBase64)
   });
+
+  // Modes (instructions + reference files that steer responses)
+  ipcMain.handle("modes-get", () => ModesStore.read())
+  ipcMain.handle("modes-save", (_e, state: { modes: Mode[]; activeId: string }) => {
+    ModesStore.write(state)
+    return state
+  })
+  ipcMain.handle("modes-set-active", (_e, id: string) => ModesStore.setActive(id))
+  ipcMain.handle("pick-reference-file", async () => {
+    // Cast around the stale @types/electron in devDependencies (it mistypes showOpenDialog).
+    const r = (await dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: [
+        { name: "Documents", extensions: ["pdf", "txt", "md", "markdown", "csv", "json", "js", "ts", "tsx", "py", "java", "go", "rb", "rs", "c", "cpp", "h", "html", "css"] }
+      ]
+    } as any)) as unknown as { canceled: boolean; filePaths: string[] }
+    if (r.canceled || !r.filePaths[0]) return null
+    try {
+      const p = r.filePaths[0]
+      const text = (await extractText(p)).slice(0, 200000) // cap very large files
+      return { name: path.basename(p), text }
+    } catch (error: any) {
+      return { name: "", text: "", error: String(error?.message || error) }
+    }
+  })
 
   // Settings window + General preferences
   ipcMain.handle("open-settings", () => appState.openSettings())
