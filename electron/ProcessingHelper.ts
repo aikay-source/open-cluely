@@ -3,8 +3,13 @@
 import { AppState } from "./main"
 import { LLMHelper } from "./LLMHelper"
 import dotenv from "dotenv"
+import os from "os"
+import path from "path"
 
-dotenv.config()
+dotenv.config() // dev: project .env (cwd)
+// Packaged app has no project .env (cwd is "/"), so also read a fixed per-user file.
+// dotenv does not override already-set vars, so the project .env still wins in dev.
+dotenv.config({ path: path.join(os.homedir(), ".open-cluely.env") })
 
 const isDev = process.env.NODE_ENV === "development"
 const isDevTest = process.env.IS_DEV_TEST === "true"

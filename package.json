@@ -1,6 +1,8 @@
 {
   "name": "interview-coder",
   "version": "1.0.0",
+  "description": "Open Cluely desktop app",
+  "author": "aikay-source",
   "main": "./dist-electron/main.js",
   "scripts": {
     "clean": "rimraf dist dist-electron",
@@ -11,14 +13,14 @@
     "electron:dev": "tsc -p electron/tsconfig.json && cross-env NODE_ENV=development electron .",
     "electron:build": "tsc -p electron/tsconfig.json && cross-env NODE_ENV=production electron .",
     "app:dev": "concurrently \"npm run dev -- --port 5180\" \"wait-on http://localhost:5180 && npm run electron:dev\"",
-    "app:build": "npm run build && electron-builder",
+    "app:build": "npm run build && tsc -p electron/tsconfig.json && electron-builder",
     "watch": "tsc -p electron/tsconfig.json --watch",
     "start": "npm run app:dev",
     "dist": "npm run app:build"
   },
   "build": {
-    "appId": "com.electron.meeting-notes",
-    "productName": "Meeting Notes Coder",
+    "appId": "com.opencluely.app",
+    "productName": "Open Cluely",
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
@@ -26,29 +28,18 @@
       "node_modules/**/*"
     ],
     "directories": {
-      "output": "release",
-      "buildResources": "assets"
+      "output": "release"
     },
-    "extraResources": [
-      {
-        "from": "assets/",
-        "to": "assets/"
-      }
-    ],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
         {
           "target": "dmg",
           "arch": [
-            "x64",
             "arm64"
           ]
         }
-      ],
-      "icon": "assets/icons/mac/icon.icns",
-      "hardenedRuntime": true,
-      "entitlements": "assets/entitlements.mac.plist"
+      ]
     },
     "win": {
       "target": [
