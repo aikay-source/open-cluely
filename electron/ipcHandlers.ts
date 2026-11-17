@@ -125,6 +125,17 @@ export function initializeIpcHandlers(appState: AppState): void {
     return appState.processingHelper.getLLMHelper().askWithImage(message, imageBase64)
   });
 
+  // Settings window + General preferences
+  ipcMain.handle("open-settings", () => appState.openSettings())
+  ipcMain.handle("get-general-settings", () => ({
+    undetectability: appState.getUndetectability(),
+    openAtLogin: app.getLoginItemSettings().openAtLogin
+  }))
+  ipcMain.handle("set-undetectability", (_e, enabled: boolean) => appState.setUndetectability(enabled))
+  ipcMain.handle("set-open-at-login", (_e, enabled: boolean) => {
+    app.setLoginItemSettings({ openAtLogin: enabled })
+  })
+
   ipcMain.handle("quit-app", () => {
     app.quit()
   })

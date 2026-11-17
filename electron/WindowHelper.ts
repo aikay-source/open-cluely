@@ -11,6 +11,7 @@ const startUrl = isDev
 
 export class WindowHelper {
   private mainWindow: BrowserWindow | null = null
+  private settingsWindow: BrowserWindow | null = null
   private isWindowVisible: boolean = false
   private windowPosition: { x: number; y: number } | null = null
   private windowSize: { width: number; height: number } | null = null
@@ -25,6 +26,41 @@ export class WindowHelper {
 
   constructor(appState: AppState) {
     this.appState = appState
+  }
+
+  // A normal (framed, resizable) window for Settings — distinct from the overlay.
+  public openSettings(): void {
+    if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
+      this.settingsWindow.show()
+      this.settingsWindow.focus()
+      return
+    }
+    this.settingsWindow = new BrowserWindow({
+      width: 880,
+      height: 640,
+      minWidth: 720,
+      minHeight: 480,
+      title: "Open Cluely Settings",
+      titleBarStyle: "hidden",
+      trafficLightPosition: { x: 16, y: 16 },
+      backgroundColor: "#1c1c1e",
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, "preload.js")
+      }
+    })
+    const url = startUrl + (startUrl.includes("?") ? "&" : "?") + "window=settings"
+    this.settingsWindow.loadURL(url)
+    this.settingsWindow.once("ready-to-show", () => this.settingsWindow?.show())
+    this.settingsWindow.on("closed", () => {
+      this.settingsWindow = null
+    })
+  }
+
+  public setContentProtection(enabled: boolean): void {
+    this.mainWindow?.setContentProtection(enabled)
   }
 
   public setWindowDimensions(width: number, height: number): void {

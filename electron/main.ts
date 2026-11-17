@@ -109,6 +109,18 @@ export class AppState {
     this.windowHelper.createWindow()
   }
 
+  private undetectable: boolean = true
+  public openSettings(): void {
+    this.windowHelper.openSettings()
+  }
+  public setUndetectability(enabled: boolean): void {
+    this.undetectable = enabled
+    this.windowHelper.setContentProtection(enabled)
+  }
+  public getUndetectability(): boolean {
+    return this.undetectable
+  }
+
   public hideMainWindow(): void {
     this.windowHelper.hideMainWindow()
   }

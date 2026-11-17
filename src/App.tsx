@@ -1,5 +1,6 @@
 import { ToastProvider } from "./components/ui/toast"
 import Queue from "./_pages/Queue"
+import Settings from "./_pages/Settings"
 import { ToastViewport } from "@radix-ui/react-toast"
 import { useEffect, useRef, useState } from "react"
 import Solutions from "./_pages/Solutions"
@@ -70,7 +71,7 @@ const queryClient = new QueryClient({
   }
 })
 
-const App: React.FC = () => {
+const OverlayApp: React.FC = () => {
   const [view, setView] = useState<"queue" | "solutions" | "debug">("queue")
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -179,6 +180,11 @@ const App: React.FC = () => {
       </QueryClientProvider>
     </div>
   )
+}
+
+const App: React.FC = () => {
+  const isSettings = new URLSearchParams(window.location.search).get("window") === "settings"
+  return isSettings ? <Settings /> : <OverlayApp />
 }
 
 export default App

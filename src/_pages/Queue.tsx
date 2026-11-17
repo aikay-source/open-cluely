@@ -144,8 +144,8 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
           onNewChat={() => setChatMessages([])}
           screenContext={screenContext}
           onToggleScreenContext={() => setScreenContext((v) => !v)}
-          settingsOpen={settingsOpen}
-          onToggleSettings={() => setSettingsOpen((o) => !o)}
+          settingsOpen={false}
+          onToggleSettings={() => window.electronAPI.invoke("open-settings")}
           onModelChange={(provider, model) => setChatMessages((msgs) => [...msgs, { role: "gemini", text: `Switched to ${provider}: ${model}.` }])}
           onEscape={() => setChatOpen(false)}
         />
