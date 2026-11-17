@@ -2,13 +2,8 @@
 
 import path from "node:path"
 import fs from "node:fs"
-import { app } from "electron"
+import { app, desktopCapturer, screen } from "electron"
 import { v4 as uuidv4 } from "uuid"
-import os from "node:os"
-import { execFile } from "node:child_process"
-import { promisify } from "node:util"
-
-const execFileP = promisify(execFile)
 
 export class ScreenshotHelper {
   private screenshotQueue: string[] = []
@@ -74,23 +69,22 @@ export class ScreenshotHelper {
     this.extraScreenshotQueue = []
   }
 
-  // Capture via Electron's desktopCapturer: it shows the Screen Recording prompt once on
-  // first use and then respects the grant — unlike the screencapture subprocess, which fails
-  // silently. Nothing captures until the user actually takes a screenshot (no launch prompt).
+  // Capture via Electron's desktopCapturer: it runs in the main process, which is the entity
+  // macOS granted Screen Recording — unlike a spawned `screencapture`, whose permission is
+  // checked against the subprocess and fails even when the app itself is granted.
   private async captureScreenPng(): Promise<Buffer> {
-    // Use the macOS `screencapture` tool to a temp path (no spaces) — reliable once the app
-    // is granted Screen Recording, unlike desktopCapturer which returns blank frames here.
-    const tmp = path.join(os.tmpdir(), `oc-${uuidv4()}.png`)
-    try {
-      await execFileP("screencapture", ["-x", "-t", "png", tmp])
-      const buf = await fs.promises.readFile(tmp)
-      if (buf.length < 1000) throw new Error("SCREEN_PERMISSION")
-      return buf
-    } catch {
-      throw new Error("SCREEN_PERMISSION")
-    } finally {
-      fs.promises.unlink(tmp).catch(() => {})
-    }
+    const primary = screen.getPrimaryDisplay()
+    const { width, height } = primary.size
+    const scale = primary.scaleFactor || 1
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
+    })
+    const img = sources[0]?.thumbnail
+    if (!img || img.isEmpty()) throw new Error("SCREEN_PERMISSION")
+    const buf = img.toPNG()
+    if (buf.length < 1000) throw new Error("SCREEN_PERMISSION")
+    return buf
   }
 
   public async takeScreenshot(

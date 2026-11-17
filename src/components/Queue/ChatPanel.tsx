@@ -96,8 +96,14 @@ interface Props {
 const ChatPanel: React.FC<Props> = (p) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const atBottom = useRef(true)
+  // Stick to the bottom only when the user is already there, so scrolling up to read stays put.
+  const onScroll = () => {
+    const el = scrollRef.current
+    if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+  }
   useEffect(() => {
-    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight)
+    if (atBottom.current) scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight)
   }, [p.messages, p.transcript, p.loading])
   useEffect(() => {
     if (!p.loading) inputRef.current?.focus()
@@ -146,7 +152,7 @@ const ChatPanel: React.FC<Props> = (p) => {
           <ModelSelector onModelChange={p.onModelChange} onChatOpen={() => undefined} />
         </div>
       ) : p.view === "transcript" ? (
-        <div ref={scrollRef} className="scrollbar-thin max-h-[420px] min-h-0 overflow-y-auto px-4 py-4">
+        <div ref={scrollRef} onScroll={onScroll} className="scrollbar-thin max-h-[420px] min-h-0 overflow-y-auto px-4 py-4">
           <div className="mb-3 flex min-h-8 items-center justify-between gap-3">
             <h3 className={SECTION_TITLE}>Transcript</h3>
             <div className="flex items-center gap-1">
@@ -200,7 +206,7 @@ const ChatPanel: React.FC<Props> = (p) => {
           )}
         </div>
       ) : (
-        <div ref={scrollRef} className="scrollbar-thin max-h-[420px] min-h-0 overflow-y-auto px-4 py-4">
+        <div ref={scrollRef} onScroll={onScroll} className="scrollbar-thin max-h-[420px] min-h-0 overflow-y-auto px-4 py-4">
           {p.messages.length === 0 && !p.loading ? (
             <div className="flex h-full min-h-[160px] items-center justify-center">
               <p className="text-center text-[14px] text-white/45">Ask anything. This chat is ephemeral and won’t be saved.</p>
