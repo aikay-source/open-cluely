@@ -78,7 +78,7 @@ export class ScreenshotHelper {
     const thumbnailSize = { width: display.size.width, height: display.size.height }
     // ScreenCaptureKit can return a blank frame on the first call even when granted — retry.
     for (let attempt = 0; attempt < 4; attempt++) {
-      const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize }).catch(() => [])
+      const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize }).catch(() => [] as any[])
       const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
       if (source && !source.thumbnail.isEmpty()) {
         const png = source.thumbnail.toPNG()
