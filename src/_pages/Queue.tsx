@@ -9,12 +9,16 @@ interface QueueProps {
   setView: React.Dispatch<React.SetStateAction<"queue" | "solutions" | "debug">>
 }
 
-const ASKS = {
-  "💡 Suggest answer":
-    "What is the interviewer's latest question? Give a strong spoken answer the user could give right now, in plain words, 60 to 90 seconds when read aloud. Structure it as situation, action, result where that fits.",
-  "📝 Notes": "Write brief bullet notes of what has been asked and answered so far, and note any answer that was weak or incomplete.",
-  "➡️ Next steps":
-    "Based on where this interview is, list what the user should prepare to say next: likely follow-up questions, points not yet made, and one thing to improve in delivery."
+// Cluely's four preset asks (keys match the chips in ChatPanel).
+const ASKS: Record<string, string> = {
+  "Assist":
+    "Help me with what's in front of me right now. Using the conversation so far (and anything I describe), explain what's happening, answer the current question, or tell me the best next move — concise and immediately usable.",
+  "What should I say?":
+    "Based on the live conversation, suggest a strong, natural thing for me to say right now, in my own voice. Give me a few sentences I could say aloud.",
+  "Follow-up questions":
+    "Based on the conversation so far, list 3 to 5 good follow-up questions I could ask next.",
+  "Recap":
+    "Summarize the conversation so far as concise bullet points: what's been discussed, what was decided, and what's still open."
 }
 
 const Queue: React.FC<QueueProps> = ({ setView }) => {

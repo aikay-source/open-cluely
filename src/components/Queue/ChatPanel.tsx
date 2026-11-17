@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react"
-import { LuAudioLines, LuCopy, LuCornerDownLeft, LuFileText, LuImage, LuSettings } from "react-icons/lu"
+import { LuAudioLines, LuCopy, LuCornerDownLeft, LuFileText, LuImage, LuMessageSquare, LuRefreshCw, LuSettings, LuSparkles, LuWandSparkles } from "react-icons/lu"
 import ModelSelector from "../ui/ModelSelector"
 import { formatElapsed } from "./useListener"
 
@@ -12,8 +12,13 @@ const ICON_BUTTON =
 const TOOLBAR_TEXT_BUTTON =
   "group/toolbar-button pointer-events-auto inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-transparent px-3 py-1 font-semibold text-[12px] text-white/72 leading-none transition-[background-color,color,scale] duration-150 hover:bg-white/[0.145] hover:text-white active:scale-[0.96]"
 const SECTION_TITLE = "font-semibold text-[12px] text-white/34 uppercase tracking-[0.14em]"
-const CHIP =
-  "inline-flex h-8 items-center gap-1.5 rounded-lg bg-white/[0.08] px-2.5 font-semibold text-[12px] text-white/68 leading-none transition-[background-color,color,scale] duration-150 hover:bg-white/[0.12] hover:text-white active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45"
+// Cluely's four preset asks. Labels are the keys into Queue's ASKS prompt map.
+const CHIPS = [
+  { label: "Assist", icon: LuSparkles },
+  { label: "What should I say?", icon: LuWandSparkles },
+  { label: "Follow-up questions", icon: LuMessageSquare },
+  { label: "Recap", icon: LuRefreshCw }
+] as const
 
 const Kbd = ({ children, outline }: { children: React.ReactNode; outline?: boolean }) => (
   <span
@@ -78,11 +83,17 @@ const ChatPanel: React.FC<Props> = (p) => {
           <input
             ref={inputRef}
             className="min-h-14 w-[calc(100%-3.5rem)] bg-transparent py-[18px] pr-2 pl-4 text-[15px] text-white leading-5 outline-none placeholder:font-medium placeholder:text-white/50"
-            placeholder="Ask anything about the interview, or ⌘ ↵ for help"
+            placeholder="Ask about your screen or conversation, or ⌘ ↵ for Assist"
             value={p.input}
             disabled={p.loading}
             onChange={(e) => p.setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && p.onEscape()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") return p.onEscape()
+              if (e.key === "Enter" && e.metaKey) {
+                e.preventDefault()
+                p.onAsk("Assist", p.asks["Assist"])
+              }
+            }}
           />
           <button
             type="submit"
@@ -180,14 +191,22 @@ const ChatPanel: React.FC<Props> = (p) => {
         </div>
       )}
 
-      {hasTranscript && !p.settingsOpen && (
-        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
-          {Object.entries(p.asks).map(([label, prompt]) => (
-            <button key={label} type="button" disabled={p.loading} className={CHIP} onClick={() => p.onAsk(label, prompt)}>
-              {label}
-            </button>
+      {!p.settingsOpen && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 pb-3 text-[13px] text-white/70">
+          {CHIPS.map((c, i) => (
+            <React.Fragment key={c.label}>
+              {i > 0 && <span aria-hidden className="text-white/20">·</span>}
+              <button
+                type="button"
+                disabled={p.loading}
+                onClick={() => p.onAsk(c.label, p.asks[c.label])}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap transition-colors hover:text-white disabled:opacity-50"
+              >
+                <c.icon className="size-3.5" /> {c.label}
+              </button>
+            </React.Fragment>
           ))}
-          {p.listenError && <span className="text-[12px] text-white/50">{p.listenError}</span>}
+          {p.listenError && <span className="ml-auto text-[12px] text-white/50">{p.listenError}</span>}
         </div>
       )}
 
