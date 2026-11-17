@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, systemPreferences, desktopCapturer, shell } from "electron"
+import { app, BrowserWindow, Tray, Menu, nativeImage, systemPreferences, desktopCapturer } from "electron"
 import { initializeIpcHandlers } from "./ipcHandlers"
 import { WindowHelper } from "./WindowHelper"
 import { ScreenshotHelper } from "./ScreenshotHelper"
@@ -307,17 +307,11 @@ async function initializeApp() {
 async function ensureScreenPermission(): Promise<void> {
   if (process.platform !== "darwin") return
   try {
-    const status = systemPreferences.getMediaAccessStatus("screen")
-    if (status === "granted") return
-    // Fetching a thumbnail actually reads screen pixels, which is what makes macOS show the
-    // prompt and add the app to the Privacy list (a metadata-only getSources does not).
+    if (systemPreferences.getMediaAccessStatus("screen") === "granted") return
+    // Fetching a thumbnail reads screen pixels, which makes macOS show its native one-time
+    // "record the screen" prompt. We do NOT open the Settings pane — for an ad-hoc-signed app
+    // getMediaAccessStatus is unreliable and would nag on every launch even after granting.
     await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } }).catch(() => {})
-    if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
-      await shell.openExternal(
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-      )
-      console.log("[main] Screen Recording not granted — opened Privacy settings. Enable it and restart.")
-    }
   } catch (error) {
     console.error("[main] ensureScreenPermission failed:", error)
   }
