@@ -1,13 +1,21 @@
-// electron-builder skips signing without a Developer ID, which leaves the .app with an
-// invalid seal that Apple Silicon refuses to launch ("damaged"). Ad-hoc sign the whole
-// bundle after packing so the dmg contains a runnable (unsigned-but-valid) app.
+// Sign the packaged app so Apple Silicon will run it. Prefer the stable self-signed identity
+// (scripts/setup-signing.sh) so macOS keeps Screen Recording / Mic grants across rebuilds;
+// fall back to ad-hoc if that identity isn't installed on this machine.
 const { execSync } = require("child_process")
 const path = require("path")
 
+const IDENTITY = "Open Cluely Self-Signed"
+
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== "darwin") return
-  const appName = `${context.packager.appInfo.productFilename}.app`
-  const appPath = path.join(context.appOutDir, appName)
-  execSync(`codesign --force --deep --sign - "${appPath}"`, { stdio: "inherit" })
-  console.log(`[afterPack] ad-hoc signed ${appName}`)
+  const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
+
+  let hasIdentity = false
+  try {
+    hasIdentity = execSync("security find-identity -p codesigning", { encoding: "utf8" }).includes(IDENTITY)
+  } catch {}
+
+  const signArg = hasIdentity ? `"${IDENTITY}"` : "-"
+  execSync(`codesign --force --deep --sign ${signArg} "${appPath}"`, { stdio: "inherit" })
+  console.log(`[afterPack] signed ${path.basename(appPath)} with ${hasIdentity ? IDENTITY : "ad-hoc"}`)
 }
