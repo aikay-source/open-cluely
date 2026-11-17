@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react"
-import { LuAudioLines, LuCopy, LuCornerDownLeft, LuFileText, LuImage, LuMessageSquare, LuRefreshCw, LuSettings, LuSparkles, LuWandSparkles } from "react-icons/lu"
+import { LuAudioLines, LuCopy, LuCornerDownLeft, LuFileText, LuHistory, LuImage, LuMessageSquare, LuRefreshCw, LuSettings, LuSparkles, LuWandSparkles } from "react-icons/lu"
 import ModelSelector from "../ui/ModelSelector"
 import { formatElapsed } from "./useListener"
 
@@ -51,6 +51,7 @@ interface Props {
   view: "chat" | "transcript"
   setView: (v: "chat" | "transcript") => void
   onNewChat: () => void
+  onOpenHistory: () => void
   screenContext: boolean
   onToggleScreenContext: () => void
   settingsOpen: boolean
@@ -287,6 +288,10 @@ const ChatPanel: React.FC<Props> = (p) => {
           </div>
 
           <div className="flex min-w-0 items-center justify-end gap-2 pr-3">
+            <button type="button" aria-label="History" className={`${TOOLBAR_TEXT_BUTTON} pr-2`} onClick={p.onOpenHistory} tabIndex={-1}>
+              <LuHistory className="size-4 stroke-[2.25]" />
+              <span className="whitespace-nowrap">History</span>
+            </button>
             {hasTranscript ? (
               <button type="button" className={TOOLBAR_TEXT_BUTTON} onClick={() => p.setView(p.view === "transcript" ? "chat" : "transcript")} tabIndex={-1}>
                 <LuFileText className="size-4 stroke-[2.25]" />

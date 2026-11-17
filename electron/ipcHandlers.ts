@@ -3,6 +3,7 @@
 import { ipcMain, app } from "electron"
 import fs from "fs"
 import { AppState } from "./main"
+import { SessionStore, Session } from "./SessionStore"
 
 export function initializeIpcHandlers(appState: AppState): void {
   ipcMain.handle(
@@ -135,6 +136,12 @@ export function initializeIpcHandlers(appState: AppState): void {
   ipcMain.handle("set-open-at-login", (_e, enabled: boolean) => {
     app.setLoginItemSettings({ openAtLogin: enabled })
   })
+
+  // History: persisted listening sessions
+  ipcMain.handle("sessions-list", () => SessionStore.list())
+  ipcMain.handle("sessions-get", (_e, id: string) => SessionStore.get(id))
+  ipcMain.handle("sessions-save", (_e, session: Session) => SessionStore.save(session))
+  ipcMain.handle("sessions-delete", (_e, id: string) => SessionStore.delete(id))
 
   ipcMain.handle("quit-app", () => {
     app.quit()

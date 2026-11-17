@@ -3,6 +3,7 @@ import { useQuery } from "react-query"
 import { Toast, ToastTitle, ToastDescription, ToastVariant, ToastMessage } from "../components/ui/toast"
 import ControlPill from "../components/Queue/ControlPill"
 import ChatPanel, { Message, TranscriptEntry } from "../components/Queue/ChatPanel"
+import History, { Session } from "../components/Queue/History"
 import { useListener } from "../components/Queue/useListener"
 
 interface QueueProps {
@@ -33,6 +34,7 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
   const [chatMessages, setChatMessages] = useState<Message[]>([])
   const [chatLoading, setChatLoading] = useState(false)
   const [screenContext, setScreenContext] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
 
   const listener = useListener((text, at) => {
@@ -75,6 +77,52 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
     }
   }
 
+  const sessionStart = useRef(0)
+  const startListening = () => {
+    sessionStart.current = Date.now()
+    listener.start()
+    setChatOpen(true)
+    setPanelView("transcript")
+  }
+  // Stop listening and save the session (with an LLM-generated title + summary) to History.
+  const stopAndSave = async () => {
+    const started = sessionStart.current
+    const entries = transcript
+    const msgs = chatMessages
+    listener.stop()
+    if (entries.length === 0) return
+    let title = "Session"
+    let summary = ""
+    try {
+      const text = entries.map((t) => t.text).join(" ")
+      const resp: string = await window.electronAPI.invoke(
+        "gemini-chat",
+        `Write a 3-6 word title for this conversation, then a blank line, then a concise bullet-point summary. Transcript:\n${text}`
+      )
+      const lines = resp.split("\n")
+      title = (lines[0] || "").replace(/^\s*(title[:\-]\s*)/i, "").replace(/^#+\s*|["*]/g, "").trim().slice(0, 80) || title
+      summary = lines.slice(1).join("\n").replace(/^\s*(summary[:\-]\s*)/i, "").trim()
+    } catch {
+      /* keep defaults */
+    }
+    await window.electronAPI.invoke("sessions-save", {
+      id: crypto.randomUUID(),
+      title,
+      startedAt: started || Date.now(),
+      durationMs: Date.now() - (started || Date.now()),
+      transcript: entries,
+      messages: msgs,
+      summary
+    })
+  }
+  const resume = (s: { transcript: TranscriptEntry[]; messages: Message[] }) => {
+    setTranscript(s.transcript)
+    setChatMessages(s.messages)
+    setHistoryOpen(false)
+    setChatOpen(true)
+    setPanelView("transcript")
+  }
+
   useEffect(() => {
     const updateDimensions = () => {
       if (!contentRef.current) return
@@ -110,14 +158,12 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
         isThinking={chatLoading}
         isListening={listener.isListening}
         onToggleChat={() => setChatOpen((o) => !o)}
-        onStartListening={() => {
-          listener.start()
-          setChatOpen(true)
-          setPanelView("transcript")
-        }}
-        onStopListening={listener.stop}
+        onStartListening={startListening}
+        onStopListening={stopAndSave}
       />
-      {chatOpen && (
+      {chatOpen && historyOpen ? (
+        <History onClose={() => setHistoryOpen(false)} onResume={(s: Session) => resume(s)} />
+      ) : chatOpen ? (
         <ChatPanel
           messages={chatMessages}
           loading={chatLoading}
@@ -131,11 +177,9 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
           isListening={listener.isListening}
           elapsed={listener.elapsed}
           listenError={listener.error}
-          onStartListening={() => {
-            listener.start()
-            setPanelView("transcript")
-          }}
-          onStopListening={listener.stop}
+          onStartListening={startListening}
+          onStopListening={stopAndSave}
+          onOpenHistory={() => setHistoryOpen(true)}
           mics={listener.mics}
           micId={listener.micId}
           setMicId={listener.setMicId}
@@ -149,7 +193,7 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
           onModelChange={(provider, model) => setChatMessages((msgs) => [...msgs, { role: "gemini", text: `Switched to ${provider}: ${model}.` }])}
           onEscape={() => setChatOpen(false)}
         />
-      )}
+      ) : null}
     </div>
   )
 }
