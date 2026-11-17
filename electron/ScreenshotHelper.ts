@@ -83,8 +83,12 @@ export class ScreenshotHelper {
       }
     })
     const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
-    if (!source) throw new Error("No screen source available")
-    return source.thumbnail.toPNG()
+    const png = source?.thumbnail.toPNG()
+    // Without Screen Recording permission macOS returns no/empty frames.
+    if (!source || !png || png.length < 100) {
+      throw new Error("SCREEN_PERMISSION")
+    }
+    return png
   }
 
   public async takeScreenshot(

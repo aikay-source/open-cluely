@@ -1,6 +1,6 @@
 // ipcHandlers.ts
 
-import { ipcMain, app, dialog } from "electron"
+import { ipcMain, app, dialog, desktopCapturer } from "electron"
 import fs from "fs"
 import path from "path"
 import { AppState } from "./main"
@@ -139,9 +139,23 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   // Ask with the current screen attached (screen-context toggle ON).
   ipcMain.handle("ask-with-screen", async (event, message: string) => {
-    const screenshotPath = await appState.takeScreenshot()
-    const imageBase64 = (await fs.promises.readFile(screenshotPath)).toString("base64")
+    let imageBase64: string
+    try {
+      const screenshotPath = await appState.takeScreenshot()
+      imageBase64 = (await fs.promises.readFile(screenshotPath)).toString("base64")
+    } catch {
+      return "I couldn't capture your screen. Turn on Open Cluely under System Settings → Privacy & Security → Screen Recording, then try again."
+    }
     return appState.processingHelper.getLLMHelper().askWithImage(withMode(message), imageBase64)
+  });
+
+  // Prompt for Screen Recording access (called when the screen-context toggle is turned on).
+  ipcMain.handle("request-screen-access", async () => {
+    try {
+      await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } })
+    } catch {
+      /* macOS shows its own prompt */
+    }
   });
 
   // Modes (instructions + reference files that steer responses)

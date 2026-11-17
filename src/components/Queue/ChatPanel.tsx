@@ -81,9 +81,6 @@ interface Props {
   listenError: string | null
   onStartListening: () => void
   onStopListening: () => void
-  mics: MediaDeviceInfo[]
-  micId: string
-  setMicId: (id: string) => void
   view: "chat" | "transcript"
   setView: (v: "chat" | "transcript") => void
   onNewChat: () => void
@@ -300,27 +297,9 @@ const ChatPanel: React.FC<Props> = (p) => {
                 </div>
               </div>
             ) : (
-              <>
-                <button type="button" aria-label="Listen" title="Start Audio Session" className={ICON_BUTTON} onClick={p.onStartListening} tabIndex={-1}>
-                  <LuAudioLines className="size-5" />
-                </button>
-                {p.mics.length > 1 && (
-                  <select
-                    aria-label="Audio input"
-                    title="Audio input. Pick BlackHole to hear the call audio."
-                    className="h-7 max-w-[110px] rounded-md bg-white/[0.08] px-1.5 text-[11px] text-white/60 outline-none"
-                    value={p.micId}
-                    onChange={(e) => p.setMicId(e.target.value)}
-                  >
-                    <option value="">Default mic</option>
-                    {p.mics.map((m) => (
-                      <option key={m.deviceId} value={m.deviceId}>
-                        {m.label || "Mic"}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </>
+              <button type="button" aria-label="Listen" title="Start Audio Session" className={ICON_BUTTON} onClick={p.onStartListening} tabIndex={-1}>
+                <LuAudioLines className="size-5" />
+              </button>
             )}
           </div>
 

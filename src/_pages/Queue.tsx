@@ -180,14 +180,16 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
           onStartListening={startListening}
           onStopListening={stopAndSave}
           onOpenHistory={() => setHistoryOpen(true)}
-          mics={listener.mics}
-          micId={listener.micId}
-          setMicId={listener.setMicId}
           view={panelView}
           setView={setPanelView}
           onNewChat={() => setChatMessages([])}
           screenContext={screenContext}
-          onToggleScreenContext={() => setScreenContext((v) => !v)}
+          onToggleScreenContext={() => {
+            setScreenContext((v) => {
+              if (!v) window.electronAPI.invoke("request-screen-access") // prompt on turning it on
+              return !v
+            })
+          }}
           settingsOpen={false}
           onToggleSettings={() => window.electronAPI.invoke("open-settings")}
           onModelChange={(provider, model) => setChatMessages((msgs) => [...msgs, { role: "gemini", text: `Switched to ${provider}: ${model}.` }])}

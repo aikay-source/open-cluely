@@ -10,17 +10,11 @@ export function useListener(onTranscript: (text: string, atSeconds: number) => v
   const [isListening, setIsListening] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [mics, setMics] = useState<MediaDeviceInfo[]>([])
-  const [micId, setMicId] = useState("")
   const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const startedAt = useRef(0)
   const callback = useRef(onTranscript)
   callback.current = onTranscript
-
-  useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then((d) => setMics(d.filter((x) => x.kind === "audioinput")))
-  }, [])
 
   useEffect(() => {
     if (!isListening) return
@@ -55,7 +49,9 @@ export function useListener(onTranscript: (text: string, atSeconds: number) => v
 
   const start = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: micId ? { deviceId: { exact: micId } } : true })
+      let deviceId = ""
+      try { deviceId = localStorage.getItem("ocMicId") || "" } catch { /* ignore */ }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: deviceId ? { deviceId: { exact: deviceId } } : true })
       streamRef.current = stream
       startedAt.current = Date.now()
       setError(null)
@@ -73,5 +69,5 @@ export function useListener(onTranscript: (text: string, atSeconds: number) => v
     setIsListening(false)
   }
 
-  return { isListening, elapsed, error, mics, micId, setMicId, start, stop }
+  return { isListening, elapsed, error, start, stop }
 }

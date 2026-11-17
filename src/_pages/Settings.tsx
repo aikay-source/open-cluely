@@ -16,8 +16,11 @@ import {
   LuPaperclip,
   LuX,
   LuCheck,
-  LuFileText
+  LuFileText,
+  LuMic,
+  LuCpu
 } from "react-icons/lu"
+import ModelSelector from "../components/ui/ModelSelector"
 
 interface RefFile {
   name: string
@@ -88,6 +91,8 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const General: React.FC = () => {
   const [undetectable, setUndetectable] = useState(false)
   const [openAtLogin, setOpenAtLogin] = useState(false)
+  const [mics, setMics] = useState<MediaDeviceInfo[]>([])
+  const [micId, setMicId] = useState("")
 
   useEffect(() => {
     window.electronAPI
@@ -97,7 +102,25 @@ const General: React.FC = () => {
         setOpenAtLogin(s.openAtLogin)
       })
       .catch(() => undefined)
+    try {
+      setMicId(localStorage.getItem("ocMicId") || "")
+    } catch {
+      /* ignore */
+    }
+    navigator.mediaDevices
+      .enumerateDevices()
+      .then((d) => setMics(d.filter((x) => x.kind === "audioinput")))
+      .catch(() => undefined)
   }, [])
+
+  const changeMic = (id: string) => {
+    setMicId(id)
+    try {
+      localStorage.setItem("ocMicId", id)
+    } catch {
+      /* ignore */
+    }
+  }
 
   const toggleUndetectable = (v: boolean) => {
     setUndetectable(v)
@@ -151,6 +174,44 @@ const General: React.FC = () => {
             control={<Switch checked={openAtLogin} onChange={toggleOpenAtLogin} />}
           />
         </div>
+      </section>
+
+      <section className="space-y-2">
+        <SectionTitle>Audio</SectionTitle>
+        <div className="rounded-xl bg-white/[0.035] px-4">
+          <Row
+            first
+            icon={LuMic}
+            title="Microphone"
+            description="Input used for Listen sessions. Pick BlackHole to capture call audio."
+            control={
+              <select
+                aria-label="Microphone"
+                value={micId}
+                onChange={(e) => changeMic(e.target.value)}
+                className="h-8 max-w-[180px] rounded-lg bg-white/[0.08] px-2 text-[12px] text-white/80 outline-none"
+              >
+                <option value="">Default microphone</option>
+                {mics.map((m, i) => (
+                  <option key={m.deviceId} value={m.deviceId}>
+                    {m.label || `Microphone ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            }
+          />
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <SectionTitle>AI Model</SectionTitle>
+        <div className="flex items-center gap-3 rounded-xl bg-white/[0.035] px-4 py-3">
+          <div className="grid size-7 shrink-0 place-items-center rounded-md bg-white/[0.045]">
+            <LuCpu className="size-4 text-white/50" />
+          </div>
+          <p className="text-[11px] text-white/40 leading-[1.4]">Choose the provider and model, or run locally with Ollama.</p>
+        </div>
+        <ModelSelector />
       </section>
     </div>
   )
