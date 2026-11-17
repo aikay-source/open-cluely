@@ -1,6 +1,6 @@
 // ipcHandlers.ts
 
-import { ipcMain, app, dialog, desktopCapturer } from "electron"
+import { ipcMain, app, dialog, desktopCapturer, systemPreferences } from "electron"
 import fs from "fs"
 import path from "path"
 import { AppState } from "./main"
@@ -149,8 +149,13 @@ export function initializeIpcHandlers(appState: AppState): void {
     return appState.processingHelper.getLLMHelper().askWithImage(withMode(message), imageBase64)
   });
 
-  // Prompt for Screen Recording access (called when the screen-context toggle is turned on).
+  // Warm up ScreenCaptureKit (and prompt if needed) when the screen-context toggle turns on.
   ipcMain.handle("request-screen-access", async () => {
+    if (process.platform === "darwin" && systemPreferences.getMediaAccessStatus("screen") === "granted") {
+      // Already granted: a 1px capture primes ScreenCaptureKit so the first real capture isn't blank.
+      await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } }).catch(() => {})
+      return
+    }
     try {
       await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } })
     } catch {

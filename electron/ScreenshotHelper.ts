@@ -74,21 +74,19 @@ export class ScreenshotHelper {
   // silently. Nothing captures until the user actually takes a screenshot (no launch prompt).
   private async captureScreenPng(): Promise<Buffer> {
     const display = screen.getPrimaryDisplay()
-    const { width, height } = display.size
-    const sources = await desktopCapturer.getSources({
-      types: ["screen"],
-      thumbnailSize: {
-        width: Math.round(width * display.scaleFactor),
-        height: Math.round(height * display.scaleFactor)
+    // Use point dimensions (not pixel-scaled): large thumbnails can come back empty.
+    const thumbnailSize = { width: display.size.width, height: display.size.height }
+    // ScreenCaptureKit can return a blank frame on the first call even when granted — retry.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize }).catch(() => [])
+      const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
+      if (source && !source.thumbnail.isEmpty()) {
+        const png = source.thumbnail.toPNG()
+        if (png.length > 1000) return png
       }
-    })
-    const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
-    const png = source?.thumbnail.toPNG()
-    // Without Screen Recording permission macOS returns no/empty frames.
-    if (!source || !png || png.length < 100) {
-      throw new Error("SCREEN_PERMISSION")
+      await new Promise((r) => setTimeout(r, 250))
     }
-    return png
+    throw new Error("SCREEN_PERMISSION")
   }
 
   public async takeScreenshot(
