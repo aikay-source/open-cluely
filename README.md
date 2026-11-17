@@ -46,7 +46,24 @@ npm install
    OLLAMA_MODEL=llama3.2
    OLLAMA_URL=http://localhost:11434
    ```
-   
+
+   **For any OpenAI-compatible vendor (OpenAI, OpenRouter, Groq, DeepSeek, Together, …):**
+   ```env
+   OPENAI_API_KEY=your_key_here
+   # Omit OPENAI_BASE_URL for OpenAI itself. For other vendors, set their endpoint:
+   #   OpenRouter: https://openrouter.ai/api/v1
+   #   Groq:       https://api.groq.com/openai/v1
+   #   DeepSeek:   https://api.deepseek.com
+   OPENAI_BASE_URL=
+   OPENAI_MODEL=gpt-4o-mini
+   # Only needed for the Listen/transcribe feature (OpenAI or Groq):
+   #   OpenAI: whisper-1   Groq: whisper-large-v3
+   OPENAI_TRANSCRIBE_MODEL=whisper-1
+   ```
+   Provider precedence is Ollama, then OpenAI-compatible, then Gemini — set only the one you want.
+   The screenshot and chat features work on any vision-capable model; live transcription needs a
+   vendor with a Whisper endpoint (OpenAI or Groq). Other vendors still do chat and screenshots.
+
    - Save the file
 
 ### Running the App

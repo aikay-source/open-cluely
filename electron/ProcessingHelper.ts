@@ -19,18 +19,27 @@ export class ProcessingHelper {
   constructor(appState: AppState) {
     this.appState = appState
     
-    // Check if user wants to use Ollama
+    // Provider precedence: Ollama > OpenAI-compatible > Gemini
     const useOllama = process.env.USE_OLLAMA === "true"
     const ollamaModel = process.env.OLLAMA_MODEL // Don't set default here, let LLMHelper auto-detect
     const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434"
-    
+    const openaiKey = process.env.OPENAI_API_KEY
+
     if (useOllama) {
       console.log("[ProcessingHelper] Initializing with Ollama")
       this.llmHelper = new LLMHelper(undefined, true, ollamaModel, ollamaUrl)
+    } else if (openaiKey) {
+      console.log("[ProcessingHelper] Initializing with OpenAI-compatible provider")
+      this.llmHelper = new LLMHelper(undefined, false, undefined, undefined, {
+        apiKey: openaiKey,
+        baseURL: process.env.OPENAI_BASE_URL,
+        model: process.env.OPENAI_MODEL,
+        transcribeModel: process.env.OPENAI_TRANSCRIBE_MODEL
+      })
     } else {
       const apiKey = process.env.GEMINI_API_KEY
       if (!apiKey) {
-        throw new Error("GEMINI_API_KEY not found in environment variables. Set GEMINI_API_KEY or enable Ollama with USE_OLLAMA=true")
+        throw new Error("No API key found. Set GEMINI_API_KEY, or OPENAI_API_KEY (with OPENAI_BASE_URL/OPENAI_MODEL for other vendors), or enable Ollama with USE_OLLAMA=true")
       }
       console.log("[ProcessingHelper] Initializing with Gemini")
       this.llmHelper = new LLMHelper(apiKey, false)

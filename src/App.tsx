@@ -23,7 +23,7 @@ declare global {
       ) => () => void
       onProcessingNoScreenshots: (callback: () => void) => () => void
       onResetView: (callback: () => void) => () => void
-      takeScreenshot: () => Promise<void>
+      takeScreenshot: () => Promise<{ path: string; preview: string }>
 
       //INITIAL SOLUTION EVENTS
       deleteScreenshot: (

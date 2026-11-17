@@ -153,7 +153,22 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
           view={panelView}
           setView={setPanelView}
           onNewChat={() => setChatMessages([])}
-          onScreenshot={() => window.electronAPI.takeScreenshot()}
+          onScreenshot={async () => {
+            // Self-contained: capture, then analyze, surfacing any error so it's never silent.
+            setChatOpen(true)
+            setPanelView("chat")
+            setSettingsOpen(false)
+            setChatLoading(true)
+            try {
+              const shot = await window.electronAPI.takeScreenshot()
+              const response = await window.electronAPI.invoke("analyze-image-file", shot.path)
+              setChatMessages((msgs) => [...msgs, { role: "gemini", text: response.text }])
+            } catch (err) {
+              setChatMessages((msgs) => [...msgs, { role: "gemini", text: "Screenshot failed: " + String(err) }])
+            } finally {
+              setChatLoading(false)
+            }
+          }}
           settingsOpen={settingsOpen}
           onToggleSettings={() => setSettingsOpen((o) => !o)}
           onModelChange={(provider, model) => setChatMessages((msgs) => [...msgs, { role: "gemini", text: `Switched to ${provider}: ${model}.` }])}

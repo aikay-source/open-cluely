@@ -26,13 +26,9 @@ export class ScreenshotHelper {
       "extra_screenshots"
     )
 
-    // Create directories if they don't exist
-    if (!fs.existsSync(this.screenshotDir)) {
-      fs.mkdirSync(this.screenshotDir)
-    }
-    if (!fs.existsSync(this.extraScreenshotDir)) {
-      fs.mkdirSync(this.extraScreenshotDir)
-    }
+    // Create directories if they don't exist (recursive in case userData itself is missing)
+    fs.mkdirSync(this.screenshotDir, { recursive: true })
+    fs.mkdirSync(this.extraScreenshotDir, { recursive: true })
   }
 
   public getView(): "queue" | "solutions" {
@@ -86,9 +82,14 @@ export class ScreenshotHelper {
       
       let screenshotPath = ""
 
+      // Guard against the target dir having been removed since startup (ENOENT on write).
+      fs.mkdirSync(this.view === "queue" ? this.screenshotDir : this.extraScreenshotDir, { recursive: true })
+
       if (this.view === "queue") {
         screenshotPath = path.join(this.screenshotDir, `${uuidv4()}.png`)
-        await screenshot({ filename: screenshotPath })
+        // screenshot-desktop strips spaces from a filename arg (breaks "Application Support"),
+        // so capture to a Buffer and write it ourselves.
+        await fs.promises.writeFile(screenshotPath, await screenshot({ format: "png" }))
 
         this.screenshotQueue.push(screenshotPath)
         if (this.screenshotQueue.length > this.MAX_SCREENSHOTS) {
@@ -103,7 +104,7 @@ export class ScreenshotHelper {
         }
       } else {
         screenshotPath = path.join(this.extraScreenshotDir, `${uuidv4()}.png`)
-        await screenshot({ filename: screenshotPath })
+        await fs.promises.writeFile(screenshotPath, await screenshot({ format: "png" }))
 
         this.extraScreenshotQueue.push(screenshotPath)
         if (this.extraScreenshotQueue.length > this.MAX_SCREENSHOTS) {

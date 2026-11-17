@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron"
+import { app, BrowserWindow, Tray, Menu, nativeImage, systemPreferences, desktopCapturer, shell } from "electron"
 import { initializeIpcHandlers } from "./ipcHandlers"
 import { WindowHelper } from "./WindowHelper"
 import { ScreenshotHelper } from "./ScreenshotHelper"
@@ -274,8 +274,9 @@ async function initializeApp() {
   // Initialize IPC handlers before window creation
   initializeIpcHandlers(appState)
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     console.log("App is ready")
+    await ensureScreenPermission()
     appState.createWindow()
     appState.createTray()
     // Register global shortcuts using ShortcutsHelper
@@ -298,6 +299,28 @@ async function initializeApp() {
 
   app.dock?.hide() // Hide dock icon (optional)
   app.commandLine.appendSwitch("disable-background-timer-throttling")
+}
+
+// macOS only shows the Screen Recording prompt the first time an app calls a capture API,
+// and screencapture (a subprocess) just fails silently instead. So ask here, and open the
+// Privacy pane if it was already denied (macOS won't re-prompt then).
+async function ensureScreenPermission(): Promise<void> {
+  if (process.platform !== "darwin") return
+  try {
+    const status = systemPreferences.getMediaAccessStatus("screen")
+    if (status === "granted") return
+    // Fetching a thumbnail actually reads screen pixels, which is what makes macOS show the
+    // prompt and add the app to the Privacy list (a metadata-only getSources does not).
+    await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } }).catch(() => {})
+    if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
+      await shell.openExternal(
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+      )
+      console.log("[main] Screen Recording not granted — opened Privacy settings. Enable it and restart.")
+    }
+  } catch (error) {
+    console.error("[main] ensureScreenPermission failed:", error)
+  }
 }
 
 // Start the application

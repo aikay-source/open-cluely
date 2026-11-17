@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai"
+import OpenAI, { toFile } from "openai"
 import fs from "fs"
 
 interface OllamaResponse {
@@ -6,21 +7,37 @@ interface OllamaResponse {
   done: boolean
 }
 
+// Config for any OpenAI-compatible vendor (OpenAI, OpenRouter, Groq, DeepSeek, Together, ...).
+export interface OpenAIConfig {
+  apiKey: string
+  baseURL?: string
+  model?: string
+  transcribeModel?: string
+}
+
 export class LLMHelper {
   private model: GenerativeModel | null = null
+  private openai: OpenAI | null = null
+  private openaiModel: string = "gpt-4o-mini"
+  private openaiTranscribeModel: string = "whisper-1"
   private readonly systemPrompt = `You are Wingman AI, a helpful, proactive assistant for any kind of problem or situation (not just coding). For any user input, analyze the situation, provide a clear problem statement, relevant context, and suggest several possible responses or actions the user could take next. Always explain your reasoning. Present your suggestions as a list of options or next steps.`
   private useOllama: boolean = false
   private ollamaModel: string = "llama3.2"
   private ollamaUrl: string = "http://localhost:11434"
 
-  constructor(apiKey?: string, useOllama: boolean = false, ollamaModel?: string, ollamaUrl?: string) {
+  constructor(apiKey?: string, useOllama: boolean = false, ollamaModel?: string, ollamaUrl?: string, openaiConfig?: OpenAIConfig) {
     this.useOllama = useOllama
-    
-    if (useOllama) {
+
+    if (openaiConfig) {
+      this.openai = new OpenAI({ apiKey: openaiConfig.apiKey, baseURL: openaiConfig.baseURL })
+      if (openaiConfig.model) this.openaiModel = openaiConfig.model
+      if (openaiConfig.transcribeModel) this.openaiTranscribeModel = openaiConfig.transcribeModel
+      console.log(`[LLMHelper] Using OpenAI-compatible provider: ${this.openaiModel}${openaiConfig.baseURL ? ` @ ${openaiConfig.baseURL}` : ""}`)
+    } else if (useOllama) {
       this.ollamaUrl = ollamaUrl || "http://localhost:11434"
       this.ollamaModel = ollamaModel || "gemma:latest" // Default fallback
       console.log(`[LLMHelper] Using Ollama with model: ${this.ollamaModel}`)
-      
+
       // Auto-detect and use first available model if specified model doesn't exist
       this.initializeOllamaModel()
     } else if (apiKey) {
@@ -28,8 +45,20 @@ export class LLMHelper {
       this.model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" })
       console.log("[LLMHelper] Using Google Gemini")
     } else {
-      throw new Error("Either provide Gemini API key or enable Ollama mode")
+      throw new Error("Provide a Gemini key, an OpenAI-compatible key, or enable Ollama mode")
     }
+  }
+
+  // One chat call for any OpenAI-compatible vendor. content is a string or a vision message array.
+  private async callOpenAI(content: any): Promise<string> {
+    const result = await this.openai!.chat.completions.create({
+      model: this.openaiModel,
+      messages: [
+        { role: "system", content: this.systemPrompt },
+        { role: "user", content }
+      ]
+    })
+    return result.choices[0]?.message?.content?.trim() || ""
   }
 
   private async fileToGenerativePart(imagePath: string) {
@@ -234,22 +263,31 @@ export class LLMHelper {
   }
 
   public async transcribeAudio(data: string, mimeType: string): Promise<string> {
+    if (this.openai) {
+      // Needs a vendor with a Whisper-style transcription endpoint (OpenAI, Groq). Others will error.
+      const ext = mimeType.includes("webm") ? "webm" : mimeType.includes("mp4") ? "mp4" : mimeType.includes("ogg") ? "ogg" : "wav"
+      const file = await toFile(Buffer.from(data, "base64"), `audio.${ext}`, { type: mimeType })
+      const result = await this.openai.audio.transcriptions.create({ file, model: this.openaiTranscribeModel })
+      return (result.text || "").trim()
+    }
     const prompt = "Transcribe this audio word for word. Return only the spoken words. If there is no clear speech, return an empty string."
-    const result = await this.model.generateContent([prompt, { inlineData: { data, mimeType } }])
+    const result = await this.model!.generateContent([prompt, { inlineData: { data, mimeType } }])
     return (await result.response).text().trim()
   }
 
   public async analyzeImageFile(imagePath: string) {
     try {
       const imageData = await fs.promises.readFile(imagePath);
-      const imagePart = {
-        inlineData: {
-          data: imageData.toString("base64"),
-          mimeType: "image/png"
-        }
-      };
-      const prompt = `${this.systemPrompt}\n\nDescribe the content of this image in a short, concise answer. In addition to your main answer, suggest several possible actions or responses the user could take next based on the image. Do not return a structured JSON object, just answer naturally as you would to a user. Be concise and brief.`;
-      const result = await this.model.generateContent([prompt, imagePart]);
+      const prompt = `Describe the content of this image in a short, concise answer. In addition to your main answer, suggest several possible actions or responses the user could take next based on the image. Do not return a structured JSON object, just answer naturally as you would to a user. Be concise and brief.`;
+      if (this.openai) {
+        const text = await this.callOpenAI([
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:image/png;base64,${imageData.toString("base64")}` } }
+        ]);
+        return { text, timestamp: Date.now() };
+      }
+      const imagePart = { inlineData: { data: imageData.toString("base64"), mimeType: "image/png" } };
+      const result = await this.model!.generateContent([`${this.systemPrompt}\n\n${prompt}`, imagePart]);
       const response = await result.response;
       const text = response.text();
       return { text, timestamp: Date.now() };
@@ -261,7 +299,9 @@ export class LLMHelper {
 
   public async chatWithGemini(message: string): Promise<string> {
     try {
-      if (this.useOllama) {
+      if (this.openai) {
+        return this.callOpenAI(message);
+      } else if (this.useOllama) {
         return this.callOllama(message);
       } else if (this.model) {
         const result = await this.model.generateContent(message);
@@ -299,11 +339,13 @@ export class LLMHelper {
     }
   }
 
-  public getCurrentProvider(): "ollama" | "gemini" {
+  public getCurrentProvider(): "ollama" | "gemini" | "openai" {
+    if (this.openai) return "openai";
     return this.useOllama ? "ollama" : "gemini";
   }
 
   public getCurrentModel(): string {
+    if (this.openai) return this.openaiModel;
     return this.useOllama ? this.ollamaModel : "gemini-3.1-flash-lite";
   }
 
@@ -337,7 +379,10 @@ export class LLMHelper {
 
   public async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
-      if (this.useOllama) {
+      if (this.openai) {
+        const text = await this.callOpenAI("Hello");
+        return text ? { success: true } : { success: false, error: "Empty response from provider" };
+      } else if (this.useOllama) {
         const available = await this.checkOllamaAvailable();
         if (!available) {
           return { success: false, error: `Ollama not available at ${this.ollamaUrl}` };
