@@ -2,8 +2,13 @@
 
 import path from "node:path"
 import fs from "node:fs"
-import { app, desktopCapturer, screen } from "electron"
+import { app } from "electron"
 import { v4 as uuidv4 } from "uuid"
+import os from "node:os"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+
+const execFileP = promisify(execFile)
 
 export class ScreenshotHelper {
   private screenshotQueue: string[] = []
@@ -73,20 +78,19 @@ export class ScreenshotHelper {
   // first use and then respects the grant — unlike the screencapture subprocess, which fails
   // silently. Nothing captures until the user actually takes a screenshot (no launch prompt).
   private async captureScreenPng(): Promise<Buffer> {
-    const display = screen.getPrimaryDisplay()
-    // Use point dimensions (not pixel-scaled): large thumbnails can come back empty.
-    const thumbnailSize = { width: display.size.width, height: display.size.height }
-    // ScreenCaptureKit can return a blank frame on the first call even when granted — retry.
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize }).catch(() => [] as any[])
-      const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
-      if (source && !source.thumbnail.isEmpty()) {
-        const png = source.thumbnail.toPNG()
-        if (png.length > 1000) return png
-      }
-      await new Promise((r) => setTimeout(r, 250))
+    // Use the macOS `screencapture` tool to a temp path (no spaces) — reliable once the app
+    // is granted Screen Recording, unlike desktopCapturer which returns blank frames here.
+    const tmp = path.join(os.tmpdir(), `oc-${uuidv4()}.png`)
+    try {
+      await execFileP("screencapture", ["-x", "-t", "png", tmp])
+      const buf = await fs.promises.readFile(tmp)
+      if (buf.length < 1000) throw new Error("SCREEN_PERMISSION")
+      return buf
+    } catch {
+      throw new Error("SCREEN_PERMISSION")
+    } finally {
+      fs.promises.unlink(tmp).catch(() => {})
     }
-    throw new Error("SCREEN_PERMISSION")
   }
 
   public async takeScreenshot(
