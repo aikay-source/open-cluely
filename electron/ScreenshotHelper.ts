@@ -2,9 +2,8 @@
 
 import path from "node:path"
 import fs from "node:fs"
-import { app } from "electron"
+import { app, desktopCapturer, screen } from "electron"
 import { v4 as uuidv4 } from "uuid"
-import screenshot from "screenshot-desktop"
 
 export class ScreenshotHelper {
   private screenshotQueue: string[] = []
@@ -70,6 +69,24 @@ export class ScreenshotHelper {
     this.extraScreenshotQueue = []
   }
 
+  // Capture via Electron's desktopCapturer: it shows the Screen Recording prompt once on
+  // first use and then respects the grant — unlike the screencapture subprocess, which fails
+  // silently. Nothing captures until the user actually takes a screenshot (no launch prompt).
+  private async captureScreenPng(): Promise<Buffer> {
+    const display = screen.getPrimaryDisplay()
+    const { width, height } = display.size
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: {
+        width: Math.round(width * display.scaleFactor),
+        height: Math.round(height * display.scaleFactor)
+      }
+    })
+    const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
+    if (!source) throw new Error("No screen source available")
+    return source.thumbnail.toPNG()
+  }
+
   public async takeScreenshot(
     hideMainWindow: () => void,
     showMainWindow: () => void
@@ -87,9 +104,7 @@ export class ScreenshotHelper {
 
       if (this.view === "queue") {
         screenshotPath = path.join(this.screenshotDir, `${uuidv4()}.png`)
-        // screenshot-desktop strips spaces from a filename arg (breaks "Application Support"),
-        // so capture to a Buffer and write it ourselves.
-        await fs.promises.writeFile(screenshotPath, await screenshot({ format: "png" }))
+        await fs.promises.writeFile(screenshotPath, await this.captureScreenPng())
 
         this.screenshotQueue.push(screenshotPath)
         if (this.screenshotQueue.length > this.MAX_SCREENSHOTS) {
@@ -104,7 +119,7 @@ export class ScreenshotHelper {
         }
       } else {
         screenshotPath = path.join(this.extraScreenshotDir, `${uuidv4()}.png`)
-        await fs.promises.writeFile(screenshotPath, await screenshot({ format: "png" }))
+        await fs.promises.writeFile(screenshotPath, await this.captureScreenPng())
 
         this.extraScreenshotQueue.push(screenshotPath)
         if (this.extraScreenshotQueue.length > this.MAX_SCREENSHOTS) {

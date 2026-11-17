@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, systemPreferences, desktopCapturer } from "electron"
+import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron"
 import { initializeIpcHandlers } from "./ipcHandlers"
 import { WindowHelper } from "./WindowHelper"
 import { ScreenshotHelper } from "./ScreenshotHelper"
@@ -276,7 +276,8 @@ async function initializeApp() {
 
   app.whenReady().then(async () => {
     console.log("App is ready")
-    await ensureScreenPermission()
+    // No screen-capture on launch: Screen Recording is requested only when the user takes a
+    // screenshot (ScreenshotHelper via desktopCapturer), so the app never prompts at startup.
     appState.createWindow()
     appState.createTray()
     // Register global shortcuts using ShortcutsHelper
@@ -299,22 +300,6 @@ async function initializeApp() {
 
   app.dock?.hide() // Hide dock icon (optional)
   app.commandLine.appendSwitch("disable-background-timer-throttling")
-}
-
-// macOS only shows the Screen Recording prompt the first time an app calls a capture API,
-// and screencapture (a subprocess) just fails silently instead. So ask here, and open the
-// Privacy pane if it was already denied (macOS won't re-prompt then).
-async function ensureScreenPermission(): Promise<void> {
-  if (process.platform !== "darwin") return
-  try {
-    if (systemPreferences.getMediaAccessStatus("screen") === "granted") return
-    // Fetching a thumbnail reads screen pixels, which makes macOS show its native one-time
-    // "record the screen" prompt. We do NOT open the Settings pane — for an ad-hoc-signed app
-    // getMediaAccessStatus is unreliable and would nag on every launch even after granting.
-    await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } }).catch(() => {})
-  } catch (error) {
-    console.error("[main] ensureScreenPermission failed:", error)
-  }
 }
 
 // Start the application
