@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.opencluely.app",
     "productName": "Open Cluely",
+    "afterPack": "scripts/afterPack.js",
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
