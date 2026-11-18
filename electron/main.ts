@@ -110,8 +110,11 @@ export class AppState {
   }
 
   private undetectable: boolean = true
-  public openSettings(): void {
-    this.windowHelper.openSettings()
+  public openSettings(tab?: string): void {
+    this.windowHelper.openSettings(tab)
+  }
+  public setMenuMinHeight(h: number): void {
+    this.windowHelper.setMenuMinHeight(h)
   }
   public setUndetectability(enabled: boolean): void {
     this.undetectable = enabled

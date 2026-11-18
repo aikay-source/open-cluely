@@ -70,6 +70,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getScreenshots: () => ipcRenderer.invoke("get-screenshots"),
   deleteScreenshot: (path: string) =>
     ipcRenderer.invoke("delete-screenshot", path),
+  onSettingsTab: (callback: (event: unknown, tab: string) => void) => {
+    ipcRenderer.on("settings-tab", callback)
+    return () => ipcRenderer.removeListener("settings-tab", callback)
+  },
 
   // Event listeners
   onScreenshotTaken: (

@@ -401,9 +401,21 @@ const Placeholder: React.FC<{ item: (typeof NAV)[number] }> = ({ item }) => (
   </div>
 )
 
+const initialPage = ((): Page => {
+  const t = new URLSearchParams(window.location.search).get("tab")
+  return NAV.some((n) => n.page === t) ? (t as Page) : "general"
+})()
+
 const Settings: React.FC = () => {
-  const [page, setPage] = useState<Page>("general")
+  const [page, setPage] = useState<Page>(initialPage)
   const active = NAV.find((n) => n.page === page)!
+
+  useEffect(() => {
+    // Switch tab when the overlay asks an already-open Settings window to show a specific page.
+    const cb = (_e: unknown, tab: string) => { if (NAV.some((n) => n.page === tab)) setPage(tab as Page) }
+    const off = (window as any).electronAPI?.onSettingsTab?.(cb)
+    return () => off?.()
+  }, [])
 
   return (
     <div className="flex h-screen w-screen select-none bg-[#1c1c1e] text-white">

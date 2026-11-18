@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import { LuArrowLeft, LuFileText, LuPlay, LuPlus, LuCopy, LuCheck } from "react-icons/lu"
 import { formatElapsed } from "./useListener"
 import { type TranscriptEntry } from "./ChatPanel"
+import { startWindowDrag } from "./drag"
 
 export interface Message {
   role: "user" | "gemini"
@@ -134,7 +135,7 @@ const History: React.FC<{ onClose: () => void; onResume: (s: Session) => void; o
   }
 
   return (
-    <section className="flex max-h-[540px] w-[690px] flex-col overflow-hidden rounded-2xl text-white" style={{ backgroundColor: "rgba(9, 14, 15, 0.82)" }}>
+    <section data-clickable onMouseDown={startWindowDrag} className="flex max-h-[540px] w-[690px] flex-col overflow-hidden rounded-2xl text-white" style={{ backgroundColor: "rgba(9, 14, 15, 0.82)" }}>
       <div className="flex h-11 shrink-0 items-center gap-2 border-white/[0.06] border-b px-3">
         <button type="button" onClick={detail ? () => setDetail(null) : onClose} aria-label="Back" className="grid size-8 place-items-center rounded-lg bg-white/[0.08] text-white/80 hover:bg-white/[0.12]">
           <LuArrowLeft className="size-4" />

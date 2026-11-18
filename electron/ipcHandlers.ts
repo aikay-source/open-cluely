@@ -189,7 +189,8 @@ export function initializeIpcHandlers(appState: AppState): void {
   })
 
   // Settings window + General preferences
-  ipcMain.handle("open-settings", () => appState.openSettings())
+  ipcMain.handle("open-settings", (_e, tab?: string) => appState.openSettings(tab))
+  ipcMain.handle("set-overlay-min-height", (_e, h: number) => appState.setMenuMinHeight(h))
   ipcMain.handle("get-general-settings", () => ({
     undetectability: appState.getUndetectability(),
     openAtLogin: app.getLoginItemSettings().openAtLogin
@@ -207,6 +208,21 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   ipcMain.handle("quit-app", () => {
     app.quit()
+  })
+
+  // Overlay click-through: renderer turns the mouse on only while the cursor is over UI,
+  // so clicks land on whatever is behind the window's transparent areas.
+  ipcMain.handle("set-ignore-mouse-events", (_e, ignore: boolean) => {
+    appState.getMainWindow()?.setIgnoreMouseEvents(ignore, ignore ? { forward: true } : undefined)
+  })
+
+  // Drag the overlay by a cursor delta (CSS -webkit-app-region drag doesn't work with the
+  // click-through forwarding above, so the pill drives this manually).
+  ipcMain.handle("move-window-by", (_e, dx: number, dy: number) => {
+    const w = appState.getMainWindow()
+    if (!w) return
+    const [x, y] = w.getPosition()
+    w.setPosition(Math.round(x + dx), Math.round(y + dy))
   })
 
   // Window movement handlers

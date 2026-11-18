@@ -20,6 +20,8 @@ export class WindowHelper {
   // Initialize with explicit number type and 0 value
   private screenWidth: number = 0
   private screenHeight: number = 0
+  private lastContentHeight: number = 0
+  private menuMinHeight: number = 0 // floor so a downward popover isn't clipped by the content-sized window
   private step: number = 0
   private currentX: number = 0
   private currentY: number = 0
@@ -29,8 +31,9 @@ export class WindowHelper {
   }
 
   // A normal (framed, resizable) window for Settings — distinct from the overlay.
-  public openSettings(): void {
+  public openSettings(tab?: string): void {
     if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
+      if (tab) this.settingsWindow.webContents.send("settings-tab", tab)
       this.settingsWindow.show()
       this.settingsWindow.focus()
       return
@@ -51,7 +54,7 @@ export class WindowHelper {
         preload: path.join(__dirname, "preload.js")
       }
     })
-    const url = startUrl + (startUrl.includes("?") ? "&" : "?") + "window=settings"
+    const url = startUrl + (startUrl.includes("?") ? "&" : "?") + "window=settings" + (tab ? `&tab=${tab}` : "")
     this.settingsWindow.loadURL(url)
     this.settingsWindow.once("ready-to-show", () => this.settingsWindow?.show())
     this.settingsWindow.on("closed", () => {
@@ -61,6 +64,16 @@ export class WindowHelper {
 
   public setContentProtection(enabled: boolean): void {
     this.mainWindow?.setContentProtection(enabled)
+  }
+
+  // Grow the overlay to fit a downward popover (0 restores the content height).
+  public setMenuMinHeight(h: number): void {
+    this.menuMinHeight = Math.max(0, Math.floor(h))
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return
+    const b = this.mainWindow.getBounds()
+    const target = Math.max(this.lastContentHeight || b.height, this.menuMinHeight)
+    this.mainWindow.setBounds({ x: b.x, y: b.y, width: b.width, height: target })
+    this.windowSize = { width: b.width, height: target }
   }
 
   public setWindowDimensions(width: number, height: number): void {
@@ -80,7 +93,8 @@ export class WindowHelper {
 
     // Ensure width doesn't exceed max allowed width and height is reasonable
     const newWidth = Math.min(width + 32, Math.max(maxAllowedWidth, 722)) // 690px chat panel + margin
-    const newHeight = Math.ceil(height)
+    this.lastContentHeight = Math.ceil(height)
+    const newHeight = Math.max(this.lastContentHeight, this.menuMinHeight)
 
     // Center the window horizontally if it would go off screen
     const maxX = workArea.width - newWidth
@@ -136,6 +150,8 @@ export class WindowHelper {
     this.mainWindow = new BrowserWindow(windowSettings)
     // this.mainWindow.webContents.openDevTools()
     this.mainWindow.setContentProtection(!process.env.ALLOW_CAPTURE) // ALLOW_CAPTURE=1 lets screen tools see the window (dev only)
+    // Start click-through; the renderer re-enables the mouse only while the cursor is over UI.
+    this.mainWindow.setIgnoreMouseEvents(true, { forward: true })
 
     if (process.platform === "darwin") {
       this.mainWindow.setVisibleOnAllWorkspaces(true, {

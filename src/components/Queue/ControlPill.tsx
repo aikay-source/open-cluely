@@ -1,5 +1,6 @@
 import React from "react"
 import { LuSparkles, LuSquare, LuX } from "react-icons/lu"
+import { startWindowDrag } from "./drag"
 
 // Styling observed in Cluely 2.1.28 control window (163x50 px pill).
 const PILL_SHADOW = "0 0 0 1px rgba(207, 226, 255, 0.24), 0 -0.5px 0 0 rgba(255, 255, 255, 0.8)"
@@ -25,9 +26,10 @@ interface Props {
 }
 
 const ControlPill: React.FC<Props> = ({ chatOpen, isThinking, isListening, onToggleChat, onStartListening, onStopListening }) => (
-  <div className="h-[50px] w-[163px] shrink-0 bg-transparent p-[2px]">
+  <div data-clickable className="h-[50px] w-[163px] shrink-0 bg-transparent p-[2px]">
     <main
-      className="app-region-drag group relative h-full w-full select-none overflow-hidden rounded-full bg-transparent"
+      onMouseDown={startWindowDrag}
+      className="group relative h-full w-full select-none overflow-hidden rounded-full bg-transparent"
       style={{ boxShadow: PILL_SHADOW }}
     >
       <div className="pointer-events-none absolute inset-0 rounded-full bg-[hsla(252,10%,10%,0.8)] transition duration-75 group-hover:brightness-[3]" />

@@ -123,6 +123,28 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
     setPanelView("transcript")
   }
 
+  // Let clicks pass through the overlay's transparent areas: the window is click-through
+  // (main sets this at startup) and we re-enable the mouse only while over a [data-clickable] block.
+  useEffect(() => {
+    let ignoring = true
+    const setIgnore = (ignore: boolean) => {
+      if (ignore === ignoring) return
+      ignoring = ignore
+      window.electronAPI.invoke("set-ignore-mouse-events", ignore)
+    }
+    const onMove = (e: MouseEvent) => {
+      if ((window as any).__ocDragging) return // keep the mouse captured during a window drag
+      setIgnore(!(e.target as Element | null)?.closest?.("[data-clickable]"))
+    }
+    const onLeave = () => setIgnore(true)
+    window.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseleave", onLeave)
+    return () => {
+      window.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseleave", onLeave)
+    }
+  }, [])
+
   useEffect(() => {
     const updateDimensions = () => {
       if (!contentRef.current) return

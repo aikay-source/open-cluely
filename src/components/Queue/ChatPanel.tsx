@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { LuAudioLines, LuCheck, LuCopy, LuCornerDownLeft, LuFileText, LuHistory, LuImage, LuLayoutGrid, LuMessageSquare, LuRefreshCw, LuSettings, LuSparkles, LuWandSparkles } from "react-icons/lu"
 import ModelSelector from "../ui/ModelSelector"
 import { formatElapsed } from "./useListener"
+import { startWindowDrag } from "./drag"
 
 // Layout and classes observed in Cluely 2.1.28 chat window (690px wide, rgba(9,14,15,0.68) panel).
 export interface Message { role: "user" | "gemini"; text: string }
@@ -35,30 +36,67 @@ const ModeSwitcher: React.FC = () => {
   const [modes, setModes] = useState<{ id: string; name: string }[]>([])
   const [activeId, setActiveId] = useState("")
   const [open, setOpen] = useState(false)
+  // Anchor measured from the button so the downward menu (fixed) escapes the panel's
+  // overflow-hidden; while open we grow the window so the menu isn't clipped at the bottom.
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const load = () => window.electronAPI.invoke("modes-get").then((s: any) => { setModes(s.modes); setActiveId(s.activeId) })
   useEffect(() => { load() }, [])
   const activeName = modes.find((m) => m.id === activeId)?.name || "General"
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      load()
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ left: r.left - 24, top: r.bottom + 8 })
+    }
+    setOpen((o) => !o)
+  }
+  // Grow the overlay to fit the open menu; restore on close/unmount.
+  useLayoutEffect(() => {
+    if (open && pos && menuRef.current) {
+      window.electronAPI.invoke("set-overlay-min-height", Math.ceil(pos.top + menuRef.current.offsetHeight + 12))
+    } else {
+      window.electronAPI.invoke("set-overlay-min-height", 0)
+    }
+    return () => { window.electronAPI.invoke("set-overlay-min-height", 0) }
+  }, [open, pos, modes.length])
+  const close = () => setOpen(false)
   return (
     <div className="relative">
-      <button type="button" aria-label={`Mode: ${activeName}`} title={`Mode: ${activeName}`} className={ICON_BUTTON} onClick={() => { if (!open) load(); setOpen((o) => !o) }} tabIndex={-1}>
+      <button ref={btnRef} type="button" aria-label={`Mode: ${activeName}`} title={`Mode: ${activeName}`} className={ICON_BUTTON} onClick={toggle} tabIndex={-1}>
         <LuLayoutGrid className="size-5" />
       </button>
-      {open && (
+      {open && pos && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full left-1/2 z-40 mb-2 w-48 -translate-x-1/2 rounded-xl border border-white/10 bg-[#1b1f20] p-1 shadow-xl">
-            <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/35">Mode</p>
-            {modes.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => { window.electronAPI.invoke("modes-set-active", m.id); setActiveId(m.id); setOpen(false) }}
-                className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] text-white/85 hover:bg-white/[0.08]"
-              >
-                <span className="truncate">{m.name}</span>
-                {m.id === activeId && <LuCheck className="size-3.5 text-[#0a84ff]" />}
-              </button>
-            ))}
+          <div className="fixed inset-0 z-40" onMouseDown={(e) => e.stopPropagation()} onClick={close} />
+          <div
+            ref={menuRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ position: "fixed", left: pos.left, top: pos.top }}
+            className="z-50 w-[200px] rounded-xl bg-[#141416] p-1 shadow-2xl ring-1 ring-white/10"
+          >
+            <div className="scrollbar-thin max-h-[160px] overflow-y-auto">
+              {modes.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => { window.electronAPI.invoke("modes-set-active", m.id); setActiveId(m.id); close() }}
+                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[13px] text-white/90 hover:bg-white/[0.07]"
+                >
+                  <span className="truncate">{m.name}</span>
+                  {m.id === activeId && <LuCheck className="size-4 shrink-0 text-white" />}
+                </button>
+              ))}
+            </div>
+            <div className="my-1 h-px bg-white/10" />
+            <button
+              type="button"
+              onClick={() => { window.electronAPI.invoke("open-settings", "modes"); close() }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-white/90 hover:bg-white/[0.07]"
+            >
+              <LuLayoutGrid className="size-4 text-white/70" /> Manage
+            </button>
           </div>
         </>
       )}
@@ -112,7 +150,7 @@ const ChatPanel: React.FC<Props> = (p) => {
   const hasTranscript = p.transcript.length > 0 || p.isListening
 
   return (
-    <section className="relative w-[690px] overflow-hidden rounded-2xl text-white" style={{ backgroundColor: "rgba(9, 14, 15, 0.68)" }}>
+    <section data-clickable onMouseDown={startWindowDrag} className="relative w-[690px] overflow-hidden rounded-2xl text-white" style={{ backgroundColor: "rgba(9, 14, 15, 0.68)" }}>
       <form
         className="relative z-10 shrink-0"
         onSubmit={(e) => {
