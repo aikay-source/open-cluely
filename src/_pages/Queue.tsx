@@ -162,7 +162,16 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
         onStopListening={stopAndSave}
       />
       {chatOpen && historyOpen ? (
-        <History onClose={() => setHistoryOpen(false)} onResume={(s: Session) => resume(s)} />
+        <History
+          onClose={() => setHistoryOpen(false)}
+          onResume={(s: Session) => resume(s)}
+          onNewChat={() => {
+            setHistoryOpen(false)
+            setChatMessages([])
+            setPanelView("chat")
+            setChatOpen(true)
+          }}
+        />
       ) : chatOpen ? (
         <ChatPanel
           messages={chatMessages}

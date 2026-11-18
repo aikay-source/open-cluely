@@ -18,7 +18,8 @@ import {
   LuCheck,
   LuFileText,
   LuMic,
-  LuCpu
+  LuCpu,
+  LuTrash2
 } from "react-icons/lu"
 import ModelSelector from "../components/ui/ModelSelector"
 
@@ -239,6 +240,7 @@ const Modes: React.FC = () => {
   if (!state) return <div className="px-8 py-6 text-[13px] text-white/40">Loading…</div>
 
   const selected = state.modes.find((m) => m.id === selectedId) || state.modes[0]
+  const isGeneral = selected.id === "general"
   const patchSelected = (patch: Partial<Mode>) =>
     update({ ...state, modes: state.modes.map((m) => (m.id === selected.id ? { ...m, ...patch } : m)) })
 
@@ -284,7 +286,37 @@ const Modes: React.FC = () => {
         ))}
       </div>
 
-      {/* Editor */}
+      {/* Right panel: General is a read-only preview; other modes are editable */}
+      {isGeneral ? (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-7 py-6">
+            <h2 className="font-semibold text-[20px] text-white">General</h2>
+            <p className="mt-2 text-[14px] text-white/55 leading-6">Flexible help for everyday conversations. Open Cluely uses the conversation and any screen context you share to help you think, write, and respond.</p>
+            <div className="mt-6 border-t border-white/[0.08] pt-5">
+              <h3 className="font-semibold text-[15px] text-white">Instructions</h3>
+              <p className="mt-1.5 text-[13px] text-white/45 leading-6">Open Cluely's default behavior, with no custom prompt.</p>
+            </div>
+            <div className="mt-5 border-t border-white/[0.08] pt-5">
+              <h3 className="font-semibold text-[15px] text-white">Reference files</h3>
+              <p className="mt-1.5 text-[13px] text-white/45 leading-6">No files attached. Create a mode to add your own documents and context.</p>
+            </div>
+            <p className="mt-6 border-t border-white/[0.06] pt-5 text-[12px] text-white/30 leading-5">For a specific task, choose a template on the left or start with New Mode.</p>
+          </div>
+          <div className="flex shrink-0 items-center justify-between gap-4 border-t border-white/[0.08] px-7 py-4">
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-white/80">Previewing General</p>
+              <p className="text-[11px] text-white/40">Activate to use it in your conversations.</p>
+            </div>
+            {state.activeId === "general" ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-[#0a84ff]"><LuCheck className="size-4" /> Active</span>
+            ) : (
+              <button type="button" onClick={() => setActive("general")} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#0a84ff] px-3.5 py-1.5 text-[13px] font-semibold text-white hover:brightness-110">
+                <LuCheck className="size-4" /> Use this mode
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="min-w-0 flex-1 overflow-y-auto px-7 py-6">
         <p className="text-[13px] text-white/55">Tailor Open Cluely's responses with instructions and reference files.</p>
 
@@ -329,23 +361,29 @@ const Modes: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-6 flex items-center justify-between border-t border-white/[0.08] pt-4">
-          <div>
-            <p className="text-[13px] font-medium text-white/80">Using {selected.name}</p>
+        <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/[0.08] pt-4">
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-medium text-white/80">Using {selected.name}</p>
             <p className="text-[11px] text-white/40">This mode guides Open Cluely's responses.</p>
           </div>
           {state.activeId === selected.id ? (
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0a84ff]"><LuCheck className="size-4" /> Active</span>
-          ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {state.modes.length > 1 && (
-                <button type="button" onClick={() => deleteMode(selected.id)} className="rounded-lg px-2.5 py-1.5 text-[12px] text-white/45 hover:bg-white/[0.06] hover:text-red-300">Delete</button>
+                <button type="button" aria-label="Delete mode" onClick={() => deleteMode(selected.id)} className="grid size-8 place-items-center rounded-lg text-white/45 hover:bg-white/[0.06] hover:text-red-300"><LuTrash2 className="size-4" /></button>
               )}
-              <button type="button" onClick={() => setActive(selected.id)} className="rounded-lg bg-white/[0.1] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-white/[0.15]">Use this mode</button>
+              <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-[#0a84ff]"><LuCheck className="size-4" /> Active</span>
+            </div>
+          ) : (
+            <div className="flex shrink-0 items-center gap-2">
+              {state.modes.length > 1 && (
+                <button type="button" aria-label="Delete mode" onClick={() => deleteMode(selected.id)} className="grid size-8 place-items-center rounded-lg text-white/45 hover:bg-white/[0.06] hover:text-red-300"><LuTrash2 className="size-4" /></button>
+              )}
+              <button type="button" onClick={() => setActive(selected.id)} className="shrink-0 whitespace-nowrap rounded-lg bg-white/[0.1] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-white/[0.15]">Use this mode</button>
             </div>
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }
