@@ -26,7 +26,13 @@ export class ProcessingHelper {
     this.appState = appState
     // In-app config (Settings → AI Model) wins; otherwise fall back to .env.
     const saved = AIConfigStore.read()
-    this.llmHelper = saved ? ProcessingHelper.buildFromConfig(saved) : ProcessingHelper.buildFromEnv()
+    try {
+      this.llmHelper = saved ? ProcessingHelper.buildFromConfig(saved) : ProcessingHelper.buildFromEnv()
+    } catch (err) {
+      // A saved config with a missing/invalid key must not brick launch; buildFromEnv never throws.
+      console.warn("[ProcessingHelper] Saved AI config failed to load; falling back to env/Ollama.", err)
+      this.llmHelper = ProcessingHelper.buildFromEnv()
+    }
   }
 
   private static buildFromConfig(cfg: AIConfig): LLMHelper {

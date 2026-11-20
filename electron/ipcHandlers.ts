@@ -250,17 +250,22 @@ export function initializeIpcHandlers(appState: AppState): void {
   // List the models a provider offers (OpenAI-compatible /models, Gemini list endpoint, or
   // Ollama /api/tags). Uses the given key, or the saved one when the field is left blank.
   ipcMain.handle("list-models", async (_e, cfg: Partial<AIConfig>) => {
+    const timeout = () => AbortSignal.timeout(8000) // don't let a wrong/slow endpoint hang the UI
     try {
       let apiKey = cfg.apiKey
       if (!apiKey && cfg.engine !== "ollama") apiKey = AIConfigStore.read()?.apiKey || ""
       if (cfg.engine === "ollama") {
-        const r = await fetch(`${cfg.ollamaUrl || "http://localhost:11434"}/api/tags`)
+        const r = await fetch(`${cfg.ollamaUrl || "http://localhost:11434"}/api/tags`, { signal: timeout() })
         const d: any = await r.json()
         return (d.models || []).map((m: any) => m.name)
       }
       if (cfg.engine === "gemini") {
         if (!apiKey) return []
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
+        // Key in a header, not the query string, so it stays out of URLs/logs.
+        const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+          headers: { "x-goog-api-key": apiKey },
+          signal: timeout()
+        })
         const d: any = await r.json()
         return (d.models || [])
           .filter((m: any) => (m.supportedGenerationMethods || []).includes("generateContent"))
@@ -269,7 +274,10 @@ export function initializeIpcHandlers(appState: AppState): void {
       }
       if (!apiKey) return []
       const base = cfg.baseURL || "https://api.openai.com/v1"
-      const r = await fetch(`${base.replace(/\/$/, "")}/models`, { headers: { Authorization: `Bearer ${apiKey}` } })
+      const r = await fetch(`${base.replace(/\/$/, "")}/models`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: timeout()
+      })
       const d: any = await r.json()
       return (d.data || []).map((m: any) => m.id).sort()
     } catch {
@@ -290,6 +298,10 @@ export function initializeIpcHandlers(appState: AppState): void {
       if (!cfg.apiKey && cfg.engine !== "ollama") {
         const prev = AIConfigStore.read()
         if (prev?.apiKey) cfg.apiKey = prev.apiKey
+      }
+      // Never persist a cloud provider without a key — it would throw when rebuilt on next launch.
+      if (!cfg.apiKey && cfg.engine !== "ollama") {
+        return { success: false, error: "An API key is required for cloud providers." }
       }
       AIConfigStore.write(cfg)
       appState.processingHelper.applyConfig(cfg)

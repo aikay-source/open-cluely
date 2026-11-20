@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write # electron-builder needs this to create the Release and upload assets
 
+# One release build per tag; a second push of the same tag cancels the in-flight run.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
