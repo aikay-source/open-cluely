@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import pkg from "../../package.json" // app version, always matches the build
 import {
   LuSettings,
   LuCalendar,
@@ -350,7 +351,7 @@ const General: React.FC = () => {
             first
             icon={LuInfo}
             title="Open Cluely"
-            description="Version 1.0.0"
+            description={`Version ${pkg.version}`}
             control={<span className="inline-flex h-7 items-center gap-1 rounded-md bg-white/[0.06] px-2.5 text-[12px] text-white/80"><span aria-hidden>✓</span> Up to date</span>}
           />
         </div>
