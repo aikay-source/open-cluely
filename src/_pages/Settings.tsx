@@ -19,9 +19,10 @@ import {
   LuFileText,
   LuMic,
   LuCpu,
-  LuTrash2
+  LuTrash2,
+  LuRefreshCw,
+  LuChevronDown
 } from "react-icons/lu"
-import ModelSelector from "../components/ui/ModelSelector"
 
 interface RefFile {
   name: string
@@ -88,6 +89,203 @@ const Row: React.FC<{ icon: React.ComponentType<{ className?: string }>; title: 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h2 className="font-medium text-[12px] text-white/55">{children}</h2>
 )
+
+// Cloud providers the user can pick. engine tells the main process how to build the client:
+// "gemini" uses Google's SDK; everything else is OpenAI-compatible with its own base URL.
+const CLOUD_PROVIDERS = [
+  { id: "openai", label: "OpenAI", engine: "openai", baseURL: undefined as string | undefined, defaultModel: "gpt-4o-mini", transcribeModel: "whisper-1", keyUrl: "platform.openai.com/api-keys" },
+  { id: "openrouter", label: "OpenRouter", engine: "openai", baseURL: "https://openrouter.ai/api/v1", defaultModel: "openai/gpt-4o-mini", transcribeModel: undefined, keyUrl: "openrouter.ai/keys" },
+  { id: "gemini", label: "Google Gemini", engine: "gemini", baseURL: undefined, defaultModel: "gemini-3.1-flash-lite", transcribeModel: undefined, keyUrl: "aistudio.google.com/apikey" },
+  { id: "groq", label: "Groq", engine: "openai", baseURL: "https://api.groq.com/openai/v1", defaultModel: "llama-3.3-70b-versatile", transcribeModel: "whisper-large-v3", keyUrl: "console.groq.com/keys" },
+  { id: "deepseek", label: "DeepSeek", engine: "openai", baseURL: "https://api.deepseek.com", defaultModel: "deepseek-chat", transcribeModel: undefined, keyUrl: "platform.deepseek.com/api_keys" },
+  { id: "mistral", label: "Mistral", engine: "openai", baseURL: "https://api.mistral.ai/v1", defaultModel: "mistral-small-latest", transcribeModel: undefined, keyUrl: "console.mistral.ai/api-keys" },
+  { id: "together", label: "Together AI", engine: "openai", baseURL: "https://api.together.xyz/v1", defaultModel: "meta-llama/Llama-3.3-70B-Instruct-Turbo", transcribeModel: undefined, keyUrl: "api.together.xyz/settings/api-keys" }
+]
+const AI_INPUT = "w-full rounded-lg bg-white/[0.06] px-3 py-2 text-[13px] text-white outline-none placeholder:text-white/30 focus:bg-white/[0.08]"
+
+// Compact combobox: shows the current model, opens a small searchable, scrollable list.
+const ModelDropdown: React.FC<{
+  value: string
+  options: string[]
+  onChange: (v: string) => void
+  loading: boolean
+  onRefresh: () => void
+  placeholder?: string
+}> = ({ value, options, onChange, loading, onRefresh, placeholder }) => {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState("")
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const below = window.innerHeight - r.bottom
+      const openUp = below < 240 && r.top > below // flip up when there's no room below
+      setPos({
+        left: r.left,
+        width: r.width,
+        maxHeight: Math.min(260, (openUp ? r.top : below) - 12),
+        ...(openUp ? { bottom: window.innerHeight - r.top + 6 } : { top: r.bottom + 6 })
+      })
+      setQ("")
+    }
+    setOpen((o) => !o)
+  }
+  const filtered = options.filter((o) => o.toLowerCase().includes(q.toLowerCase()))
+  return (
+    <div className="mt-1 flex gap-2">
+      <button ref={btnRef} type="button" onClick={toggle} className={`${AI_INPUT} flex items-center justify-between`}>
+        <span className={`truncate ${value ? "text-white" : "text-white/40"}`}>{value || placeholder || "Select a model"}</span>
+        <LuChevronDown className="size-4 shrink-0 text-white/40" />
+      </button>
+      <button type="button" onClick={onRefresh} disabled={loading} aria-label="Refresh models"
+        className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-white/60 hover:bg-white/[0.1] disabled:opacity-50">
+        <LuRefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+      </button>
+      {open && pos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight }}
+            className="z-50 flex flex-col overflow-hidden rounded-xl bg-[#232325] p-1 shadow-2xl ring-1 ring-white/10">
+            {options.length > 6 && (
+              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search models…"
+                className="mb-1 w-full shrink-0 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-[12px] text-white outline-none placeholder:text-white/30" />
+            )}
+            <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="px-2.5 py-2 text-[12px] text-white/40">{loading ? "Loading…" : "No models"}</p>
+              ) : filtered.map((o) => (
+                <button key={o} type="button" onClick={() => { onChange(o); setOpen(false) }}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-white/85 hover:bg-white/[0.07]">
+                  <span className="truncate">{o}</span>
+                  {o === value && <LuCheck className="size-4 shrink-0 text-[#0a84ff]" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+const AIModelSettings: React.FC = () => {
+  const [kind, setKind] = useState<"cloud" | "local">("cloud")
+  const [providerId, setProviderId] = useState("openai")
+  const [model, setModel] = useState(CLOUD_PROVIDERS[0].defaultModel)
+  const [apiKey, setApiKey] = useState("")
+  const [hasKey, setHasKey] = useState(false)
+  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434")
+  const [ollamaModel, setOllamaModel] = useState("")
+  const [models, setModels] = useState<string[]>([])
+  const [loadingModels, setLoadingModels] = useState(false)
+  const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle")
+  const [error, setError] = useState("")
+  const provider = CLOUD_PROVIDERS.find((p) => p.id === providerId) || CLOUD_PROVIDERS[0]
+
+  useEffect(() => {
+    window.electronAPI.invoke("get-ai-config").then((c: any) => {
+      if (!c) return
+      if (c.kind === "local") {
+        setKind("local"); setOllamaUrl(c.ollamaUrl || "http://localhost:11434"); setOllamaModel(c.model || "")
+      } else {
+        setKind("cloud")
+        if (CLOUD_PROVIDERS.some((p) => p.id === c.provider)) setProviderId(c.provider)
+        setModel(c.model || ""); setHasKey(!!c.hasKey)
+      }
+    }).catch(() => {})
+  }, [])
+
+  const loadModels = (keyOverride?: string) => {
+    const payload = kind === "local"
+      ? { engine: "ollama", ollamaUrl }
+      : { engine: provider.engine, baseURL: provider.baseURL, apiKey: keyOverride ?? apiKey }
+    setLoadingModels(true)
+    window.electronAPI.invoke("list-models", payload)
+      .then((list: any) => setModels(Array.isArray(list) ? list : []))
+      .catch(() => setModels([]))
+      .finally(() => setLoadingModels(false))
+  }
+  // Refresh the model list when the provider or cloud/local mode changes (saved key is used server-side).
+  useEffect(() => { loadModels() }, [providerId, kind, ollamaUrl])
+
+  const pickProvider = (id: string) => {
+    setProviderId(id)
+    setModel(CLOUD_PROVIDERS.find((x) => x.id === id)!.defaultModel)
+    setHasKey(false) // a different provider needs its own key
+    setModels([])
+    setStatus("idle")
+  }
+
+  const save = async () => {
+    setStatus("saving"); setError("")
+    const cfg = kind === "local"
+      ? { kind: "local", engine: "ollama", provider: "ollama", apiKey: "", model: ollamaModel, ollamaUrl }
+      : { kind: "cloud", engine: provider.engine, provider: provider.id, apiKey, baseURL: provider.baseURL, model, transcribeModel: provider.transcribeModel }
+    const r = await window.electronAPI.invoke("set-ai-config", cfg).catch((e: any) => ({ success: false, error: String(e) }))
+    if (r?.success) { setStatus("ok"); setApiKey(""); if (kind === "cloud") setHasKey(true) }
+    else { setStatus("error"); setError(r?.error || "Could not connect to the provider") }
+  }
+
+  const canSave = kind === "local" ? true : !!apiKey || hasKey
+
+  return (
+    <div className="space-y-3 rounded-xl bg-white/[0.035] p-4">
+      <div className="flex gap-1 rounded-lg bg-white/[0.05] p-1">
+        {(["cloud", "local"] as const).map((k) => (
+          <button key={k} type="button" onClick={() => { setKind(k); setStatus("idle") }}
+            className={`flex-1 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors ${kind === k ? "bg-white/[0.12] text-white" : "text-white/55 hover:text-white"}`}>
+            {k === "cloud" ? "Cloud" : "Local"}
+          </button>
+        ))}
+      </div>
+
+      {kind === "cloud" ? (
+        <>
+          <div>
+            <label className="text-[12px] text-white/55">Provider</label>
+            <select value={providerId} onChange={(e) => pickProvider(e.target.value)} className={`mt-1 ${AI_INPUT}`}>
+              {CLOUD_PROVIDERS.map((p) => <option key={p.id} value={p.id} className="bg-[#1c1c1e]">{p.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[12px] text-white/55">API key</label>
+            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+              onBlur={() => apiKey && loadModels(apiKey)}
+              placeholder={hasKey ? "•••••• saved — type to replace" : "Paste your API key"} className={`mt-1 ${AI_INPUT}`} />
+            {provider.keyUrl && <p className="mt-1 text-[11px] text-white/35">Get a key at {provider.keyUrl}</p>}
+          </div>
+          <div>
+            <label className="text-[12px] text-white/55">Model</label>
+            <ModelDropdown value={model} options={model && !models.includes(model) ? [model, ...models] : models} onChange={setModel} loading={loadingModels} onRefresh={() => loadModels()} />
+            {!models.length && <p className="mt-1 text-[11px] text-white/35">{loadingModels ? "Loading models…" : "Enter your API key, then refresh to load the model list."}</p>}
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <label className="text-[12px] text-white/55">Ollama URL</label>
+            <input value={ollamaUrl} onChange={(e) => setOllamaUrl(e.target.value)} placeholder="http://localhost:11434" className={`mt-1 ${AI_INPUT}`} />
+          </div>
+          <div>
+            <label className="text-[12px] text-white/55">Model</label>
+            <ModelDropdown value={ollamaModel} options={ollamaModel && !models.includes(ollamaModel) ? [ollamaModel, ...models] : models} onChange={setOllamaModel} loading={loadingModels} onRefresh={() => loadModels()} placeholder="Select a model…" />
+            <p className="mt-1 text-[11px] text-white/35">{loadingModels ? "Loading models…" : "Runs on your machine with Ollama — no API key needed."}</p>
+          </div>
+        </>
+      )}
+
+      <div className="flex items-center gap-3 pt-1">
+        <button type="button" onClick={save} disabled={status === "saving" || !canSave}
+          className="rounded-lg bg-[#0a84ff] px-4 py-2 text-[13px] font-semibold text-white hover:brightness-110 disabled:opacity-50">
+          {status === "saving" ? "Saving…" : "Save"}
+        </button>
+        {status === "ok" && <span className="text-[12px] text-emerald-400">Saved and connected.</span>}
+        {status === "error" && <span className="text-[12px] text-red-400">{error}</span>}
+      </div>
+    </div>
+  )
+}
 
 const General: React.FC = () => {
   const [undetectable, setUndetectable] = useState(false)
@@ -210,9 +408,9 @@ const General: React.FC = () => {
           <div className="grid size-7 shrink-0 place-items-center rounded-md bg-white/[0.045]">
             <LuCpu className="size-4 text-white/50" />
           </div>
-          <p className="text-[11px] text-white/40 leading-[1.4]">Choose the provider and model, or run locally with Ollama.</p>
+          <p className="text-[11px] text-white/40 leading-[1.4]">Choose a cloud provider and enter its API key, or run locally with Ollama.</p>
         </div>
-        <ModelSelector />
+        <AIModelSettings />
       </section>
     </div>
   )

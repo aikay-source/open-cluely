@@ -6,6 +6,7 @@ import path from "path"
 import { AppState } from "./main"
 import { SessionStore, Session } from "./SessionStore"
 import { ModesStore, Mode } from "./ModesStore"
+import { AIConfigStore, AIConfig } from "./AIConfigStore"
 
 // Extract plain text from a reference file (PDF via pdf-parse, everything else read as text).
 async function extractText(filePath: string): Promise<string> {
@@ -244,6 +245,58 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   ipcMain.handle("center-and-show-window", async () => {
     appState.centerAndShowWindow()
+  })
+
+  // List the models a provider offers (OpenAI-compatible /models, Gemini list endpoint, or
+  // Ollama /api/tags). Uses the given key, or the saved one when the field is left blank.
+  ipcMain.handle("list-models", async (_e, cfg: Partial<AIConfig>) => {
+    try {
+      let apiKey = cfg.apiKey
+      if (!apiKey && cfg.engine !== "ollama") apiKey = AIConfigStore.read()?.apiKey || ""
+      if (cfg.engine === "ollama") {
+        const r = await fetch(`${cfg.ollamaUrl || "http://localhost:11434"}/api/tags`)
+        const d: any = await r.json()
+        return (d.models || []).map((m: any) => m.name)
+      }
+      if (cfg.engine === "gemini") {
+        if (!apiKey) return []
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
+        const d: any = await r.json()
+        return (d.models || [])
+          .filter((m: any) => (m.supportedGenerationMethods || []).includes("generateContent"))
+          .map((m: any) => String(m.name).replace(/^models\//, ""))
+          .sort()
+      }
+      if (!apiKey) return []
+      const base = cfg.baseURL || "https://api.openai.com/v1"
+      const r = await fetch(`${base.replace(/\/$/, "")}/models`, { headers: { Authorization: `Bearer ${apiKey}` } })
+      const d: any = await r.json()
+      return (d.data || []).map((m: any) => m.id).sort()
+    } catch {
+      return []
+    }
+  })
+
+  // AI provider config (Settings → AI Model). The key is never returned to the renderer.
+  ipcMain.handle("get-ai-config", () => {
+    const cfg = AIConfigStore.read()
+    if (!cfg) return null
+    const { apiKey, ...rest } = cfg
+    return { ...rest, hasKey: !!apiKey }
+  })
+  ipcMain.handle("set-ai-config", async (_e, cfg: AIConfig) => {
+    try {
+      // Keep the saved key when the user edits without re-entering it.
+      if (!cfg.apiKey && cfg.engine !== "ollama") {
+        const prev = AIConfigStore.read()
+        if (prev?.apiKey) cfg.apiKey = prev.apiKey
+      }
+      AIConfigStore.write(cfg)
+      appState.processingHelper.applyConfig(cfg)
+      return await appState.processingHelper.getLLMHelper().testConnection()
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
   })
 
   // LLM Model Management Handlers

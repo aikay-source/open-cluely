@@ -2,6 +2,7 @@
 
 import { AppState } from "./main"
 import { LLMHelper } from "./LLMHelper"
+import { AIConfigStore, AIConfig } from "./AIConfigStore"
 import dotenv from "dotenv"
 import os from "os"
 import path from "path"
@@ -23,32 +24,53 @@ export class ProcessingHelper {
 
   constructor(appState: AppState) {
     this.appState = appState
-    
+    // In-app config (Settings → AI Model) wins; otherwise fall back to .env.
+    const saved = AIConfigStore.read()
+    this.llmHelper = saved ? ProcessingHelper.buildFromConfig(saved) : ProcessingHelper.buildFromEnv()
+  }
+
+  private static buildFromConfig(cfg: AIConfig): LLMHelper {
+    if (cfg.engine === "ollama") {
+      return new LLMHelper(undefined, true, cfg.model || undefined, cfg.ollamaUrl || "http://localhost:11434")
+    }
+    if (cfg.engine === "gemini") {
+      return new LLMHelper(cfg.apiKey, false, undefined, undefined, undefined, cfg.model || undefined)
+    }
+    // OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, ...)
+    return new LLMHelper(undefined, false, undefined, undefined, {
+      apiKey: cfg.apiKey,
+      baseURL: cfg.baseURL,
+      model: cfg.model,
+      transcribeModel: cfg.transcribeModel
+    })
+  }
+
+  private static buildFromEnv(): LLMHelper {
     // Provider precedence: Ollama > OpenAI-compatible > Gemini
     const useOllama = process.env.USE_OLLAMA === "true"
-    const ollamaModel = process.env.OLLAMA_MODEL // Don't set default here, let LLMHelper auto-detect
-    const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434"
     const openaiKey = process.env.OPENAI_API_KEY
-
     if (useOllama) {
-      console.log("[ProcessingHelper] Initializing with Ollama")
-      this.llmHelper = new LLMHelper(undefined, true, ollamaModel, ollamaUrl)
-    } else if (openaiKey) {
-      console.log("[ProcessingHelper] Initializing with OpenAI-compatible provider")
-      this.llmHelper = new LLMHelper(undefined, false, undefined, undefined, {
+      return new LLMHelper(undefined, true, process.env.OLLAMA_MODEL, process.env.OLLAMA_URL || "http://localhost:11434")
+    }
+    if (openaiKey) {
+      return new LLMHelper(undefined, false, undefined, undefined, {
         apiKey: openaiKey,
         baseURL: process.env.OPENAI_BASE_URL,
         model: process.env.OPENAI_MODEL,
         transcribeModel: process.env.OPENAI_TRANSCRIBE_MODEL
       })
-    } else {
-      const apiKey = process.env.GEMINI_API_KEY
-      if (!apiKey) {
-        throw new Error("No API key found. Set GEMINI_API_KEY, or OPENAI_API_KEY (with OPENAI_BASE_URL/OPENAI_MODEL for other vendors), or enable Ollama with USE_OLLAMA=true")
-      }
-      console.log("[ProcessingHelper] Initializing with Gemini")
-      this.llmHelper = new LLMHelper(apiKey, false)
     }
+    const apiKey = process.env.GEMINI_API_KEY
+    if (apiKey) return new LLMHelper(apiKey, false)
+    // Nothing configured yet: default to local Ollama so the app still launches; the user
+    // can pick a cloud provider and enter a key in Settings → AI Model.
+    console.warn("[ProcessingHelper] No provider configured; defaulting to local Ollama until set in Settings.")
+    return new LLMHelper(undefined, true, undefined, "http://localhost:11434")
+  }
+
+  // Swap the active provider at runtime after the user saves Settings → AI Model.
+  public applyConfig(cfg: AIConfig): void {
+    this.llmHelper = ProcessingHelper.buildFromConfig(cfg)
   }
 
   public async processScreenshots(): Promise<void> {

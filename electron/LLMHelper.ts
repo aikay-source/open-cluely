@@ -24,9 +24,11 @@ export class LLMHelper {
   private useOllama: boolean = false
   private ollamaModel: string = "llama3.2"
   private ollamaUrl: string = "http://localhost:11434"
+  private geminiModel: string = "gemini-3.1-flash-lite"
 
-  constructor(apiKey?: string, useOllama: boolean = false, ollamaModel?: string, ollamaUrl?: string, openaiConfig?: OpenAIConfig) {
+  constructor(apiKey?: string, useOllama: boolean = false, ollamaModel?: string, ollamaUrl?: string, openaiConfig?: OpenAIConfig, geminiModel?: string) {
     this.useOllama = useOllama
+    if (geminiModel) this.geminiModel = geminiModel
 
     if (openaiConfig) {
       this.openai = new OpenAI({ apiKey: openaiConfig.apiKey, baseURL: openaiConfig.baseURL })
@@ -42,7 +44,7 @@ export class LLMHelper {
       this.initializeOllamaModel()
     } else if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey)
-      this.model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" })
+      this.model = genAI.getGenerativeModel({ model: this.geminiModel })
       console.log("[LLMHelper] Using Google Gemini")
     } else {
       throw new Error("Provide a Gemini key, an OpenAI-compatible key, or enable Ollama mode")
@@ -365,7 +367,7 @@ export class LLMHelper {
 
   public getCurrentModel(): string {
     if (this.openai) return this.openaiModel;
-    return this.useOllama ? this.ollamaModel : "gemini-3.1-flash-lite";
+    return this.useOllama ? this.ollamaModel : this.geminiModel;
   }
 
   public async switchToOllama(model?: string, url?: string): Promise<void> {
