@@ -1,0 +1,36 @@
+name: Release
+
+# Push a tag like v1.0.0 to build macOS + Windows and publish both to a GitHub Release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # electron-builder needs this to create the Release and upload assets
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Builds the renderer + electron, packages with electron-builder, and (because of
+      # --publish always + the github provider in package.json) uploads the .dmg / .exe
+      # to a draft Release named for this tag. afterPack self-signing is skipped on Windows
+      # and falls back to ad-hoc on this unsigned macOS runner.
+      - name: Build and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run app:build -- --publish always

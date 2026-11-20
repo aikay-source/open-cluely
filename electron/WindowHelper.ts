@@ -46,6 +46,10 @@ export class WindowHelper {
       title: "Open Cluely Settings",
       titleBarStyle: "hidden",
       trafficLightPosition: { x: 16, y: 16 },
+      // Windows/Linux "hidden" also removes the min/max/close buttons; overlay the native ones back.
+      ...(process.platform !== "darwin"
+        ? { titleBarOverlay: { color: "#1c1c1e", symbolColor: "#ffffff" } }
+        : {}),
       backgroundColor: "#1c1c1e",
       show: false,
       webPreferences: {
