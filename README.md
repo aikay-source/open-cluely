@@ -1,285 +1,156 @@
-# [Sponsored by Recall AI - API for desktop recording](https://docs.recall.ai/docs/desktop-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=prat011-free-cluely)
-If you’re looking for a hosted desktop recording API, consider checking out [Recall.ai](https://docs.recall.ai/docs/desktop-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=prat011-free-cluely), an API that records Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
+<div align="center">
+  <img src="docs/screenshots/icon.png" width="96" alt="Open Cluely icon" />
+  <h1>Open Cluely</h1>
+  <p><strong>A free, open-source AI assistant that floats on top of your screen.</strong></p>
+  <p>Ask it anything, let it see what's on your screen, and get answers — during meetings, interviews, studying, or writing. Bring your own AI key, or run it fully offline.</p>
 
-# Cluely
-
-[Cluely](https://cluely.com) - The invisible desktop assistant that provides real-time insights, answers, and support during meetings, interviews, presentations, and professional conversations.
-
-
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- Make sure you have Node.js installed on your computer
-- Git installed on your computer  
-- **Either** a Gemini API key (get it from [Google AI Studio](https://makersuite.google.com/app/apikey))
-- **Or** Ollama installed locally for private LLM usage (recommended for privacy)
-
-### Installation Steps
-
-1. Clone the repository:
-```bash
-git clone [repository-url]
-cd free-cluely
-```
-
-2. Install dependencies:
-```bash
-# If you encounter Sharp/Python build errors, use this:
-SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm install --ignore-scripts
-npm rebuild sharp
-
-# Or for normal installation:
-npm install
-```
-
-3. Set up environment variables:
-   - Create a file named `.env` in the root folder
-   
-   **For Gemini (Cloud AI):**
-   ```env
-   GEMINI_API_KEY=your_api_key_here
-   ```
-   
-   **For Ollama (Local/Private AI):**
-   ```env
-   USE_OLLAMA=true
-   OLLAMA_MODEL=llama3.2
-   OLLAMA_URL=http://localhost:11434
-   ```
-
-   **For any OpenAI-compatible vendor (OpenAI, OpenRouter, Groq, DeepSeek, Together, …):**
-   ```env
-   OPENAI_API_KEY=your_key_here
-   # Omit OPENAI_BASE_URL for OpenAI itself. For other vendors, set their endpoint:
-   #   OpenRouter: https://openrouter.ai/api/v1
-   #   Groq:       https://api.groq.com/openai/v1
-   #   DeepSeek:   https://api.deepseek.com
-   OPENAI_BASE_URL=
-   OPENAI_MODEL=gpt-4o-mini
-   # Only needed for the Listen/transcribe feature (OpenAI or Groq):
-   #   OpenAI: whisper-1   Groq: whisper-large-v3
-   OPENAI_TRANSCRIBE_MODEL=whisper-1
-   ```
-   Provider precedence is Ollama, then OpenAI-compatible, then Gemini — set only the one you want.
-   The screenshot and chat features work on any vision-capable model; live transcription needs a
-   vendor with a Whisper endpoint (OpenAI or Groq). Other vendors still do chat and screenshots.
-
-   - Save the file
-
-### Running the App
-
-#### Method 1: Development Mode (Recommended for first run)
-1. Start the development server:
-```bash
-npm start
-```
-
-This command automatically:
-- Starts the Vite dev server on port 5180
-- Waits for the server to be ready
-- Launches the Electron app
-
-#### Method 2: Production Build
-```bash
-npm run dist
-```
-The built app will be in the `release` folder.
-
-## 🤖 AI Provider Options
-
-### Ollama (Recommended for Privacy)
-**Pros:**
-- 100% private - data never leaves your computer
-- No API costs
-- Works offline
-- Supports many models: llama3.2, codellama, mistral, etc.
-
-**Setup:**
-1. Install Ollama from [ollama.ai](https://ollama.ai)
-2. Pull a model: `ollama pull llama3.2`
-3. Set environment variables as shown above
-
-### Google Gemini
-**Pros:**
-- Latest AI technology
-- Fastest responses
-- Best accuracy for complex tasks
-
-**Cons:**
-- Requires API key and internet
-- Data sent to Google servers
-- Usage costs apply
-
-### ⚠️ Important Notes
-
-1. **Closing the App**: 
-   - Press `Cmd + Q` (Mac) or `Ctrl + Q` (Windows/Linux) to quit
-   - Or use Activity Monitor/Task Manager to close `Interview Coder`
-   - The X button currently doesn't work (known issue)
-
-2. **If the app doesn't start**:
-   - Make sure no other app is using port 5180
-   - Try killing existing processes:
-     ```bash
-     # Find processes using port 5180
-     lsof -i :5180
-     # Kill them (replace [PID] with the process ID)
-     kill [PID]
-     ```
-   - For Ollama users: Make sure Ollama is running (`ollama serve`)
-
-3. **Keyboard Shortcuts**:
-   - `Cmd/Ctrl + B`: Toggle window visibility
-   - `Cmd/Ctrl + H`: Take screenshot
-   - 'Cmd/Enter': Get solution
-   - `Cmd/Ctrl + Arrow Keys`: Move window
-
-## 🔧 Troubleshooting
-
-### Windows Issues Fixed 
-- **UI not loading**: Port mismatch resolved
-- **Electron crashes**: Improved error handling  
-- **Build failures**: Production config updated
-- **Window focus problems**: Platform-specific fixes applied
-
-### Ubuntu/Linux Issues Fixed 
-- **Window interaction**: Fixed focusable settings
-- **Installation confusion**: Clear setup instructions
-- **Missing dependencies**: All requirements documented
-
-### Common Solutions
-
-#### Sharp/Python Build Errors
-If you see `gyp ERR! find Python` or Sharp build errors:
-```bash
-# Solution 1: Use prebuilt binaries
-rm -rf node_modules package-lock.json
-SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm install --ignore-scripts
-npm rebuild sharp
-
-# Solution 2: Or install Python (if you prefer building from source)
-brew install python3  # macOS
-# Then run: npm install
-```
-
-#### General Installation Issues
-If you see other errors:
-1. Delete the `node_modules` folder
-2. Delete `package-lock.json` 
-3. Run `npm install` again
-4. Try running with `npm start`
-
-### Platform-Specific Notes
-- **Windows**: App now works on Windows 10/11
-- **Ubuntu/Linux**: Tested on Ubuntu 20.04+ and most Linux distros  
-- **macOS**: Native support with proper window management
-
-## Key Features
-
-### **Invisible AI Assistant**
-- Translucent, always-on-top window that's barely noticeable
-- Hide/show instantly with global hotkeys
-- Works seamlessly across all applications
-
-### **Smart Screenshot Analysis** 
-- Take screenshots of any content with `Cmd/Ctrl + H`
-- AI analyzes images, documents, presentations, or problems
-- Get instant explanations, answers, and solutions
-
-### **Audio Intelligence**
-- Process audio files and recordings
-- Real-time transcription and analysis
-- Perfect for meeting notes and content review
-
-### **Contextual Chat**
-- Chat with AI about anything you see on screen
-- Maintains conversation context
-- Ask follow-up questions for deeper insights
-
-### **Privacy-First Design**
-- **Local AI Option**: Use Ollama for 100% private processing
-- **Cloud Option**: Google Gemini for maximum performance
-- Screenshots auto-deleted after processing
-- No data tracking or storage
-
-### **Cross-Platform Support**
-- **Windows 10/11** - Full support with native performance
-- **Ubuntu/Linux** - Optimized for all major distributions  
-- **macOS** - Native window management and shortcuts
-
-## Use Cases
-
-### **Academic & Learning**
-```
-✓ Live presentation support during classes
-✓ Quick research during online exams  
-✓ Language translation and explanations
-✓ Math and science problem solving
-```
-
-### **Professional Meetings**
-```
-✓ Sales call preparation and objection handling
-✓ Technical interview coaching
-✓ Client presentation support
-✓ Real-time fact-checking and data lookup
-```
-
-### **Development & Tech**
-```
-✓ Debug error messages instantly
-✓ Code explanation and optimization
-✓ Documentation and API references
-✓ Algorithm and architecture guidance
-```
-
-## Why Choose Free Cluely?
-
-| Feature | Free Cluely | Commercial Alternatives |
-|---------|-------------|------------------------|
-| **Cost** | 100% Free | $29-99/month |
-| **Privacy** | Local AI Option | Cloud-only |
-| **Open Source** | Full transparency | Closed source |
-| **Customization** | Fully customizable | Limited options |
-| **Data Control** | You own your data | Third-party servers |
-| **Offline Mode** | Yes (with Ollama) | No |
-
-## Technical Details
-
-### **AI Models Supported**
-- **Gemini 2.0 Flash** - Latest Google AI with vision capabilities
-- **Llama 3.2** - Meta's advanced local model via Ollama
-- **CodeLlama** - Specialized coding assistance
-- **Mistral** - Lightweight, fast responses
-- **Custom Models** - Any Ollama-compatible model
-
-### **System Requirements**
-```bash
-Minimum:  4GB RAM, Dual-core CPU, 2GB storage
-Recommended: 8GB+ RAM, Quad-core CPU, 5GB+ storage
-Optimal: 16GB+ RAM for local AI models
-```
-
-## 🤝 Contributing
-
-This project welcomes contributions! While I have limited time for active maintenance, I'll review and merge quality PRs.
-
-**Ways to contribute:**
-- 🐛 Bug fixes and stability improvements
-- ✨ New features and AI model integrations  
-- 📚 Documentation and tutorial improvements
-- 🌍 Translations and internationalization
-- 🎨 UI/UX enhancements
-
-For commercial integrations or custom development, reach out on [Twitter](https://x.com/prathitjoshi_)
-
-## 📄 License
-
-ISC License - Free for personal and commercial use.
+  <a href="https://github.com/aikay-source/open-cluely/releases/latest"><strong>⬇️ Download the latest version</strong></a>
+</div>
 
 ---
 
-**⭐ Star this repo if Free Cluely helps you succeed in meetings, interviews, or presentations!**
+## What is Open Cluely?
 
-### 🏷️ Tags
-`ai-assistant` `meeting-notes` `interview-helper` `presentation-support` `ollama` `gemini-ai` `electron-app` `cross-platform` `privacy-focused` `open-source` `local-ai` `screenshot-analysis` `academic-helper` `sales-assistant` `coding-companion`
+Open Cluely is a small window that sits quietly on top of everything else on your computer. You type a question, and it answers. You can also let it **look at your screen** or **listen to audio** so its answers fit whatever you're doing right then — a question on a call, a problem on a coding screen, a slide you're presenting.
+
+A few things that make it useful:
+
+- **It's always there, but out of the way.** The assistant floats above your other apps and you can click straight through it to whatever is behind it.
+- **It can use your screen as context.** Turn on "Use screen as context" and it reads what's visible to give a relevant answer — no copy-pasting.
+- **It stays hidden from screen sharing.** With Undetectability on, Open Cluely doesn't show up in screen-share or recordings.
+- **You bring your own AI.** Use a cloud provider with your own API key (OpenAI, OpenRouter, Google Gemini, Groq, DeepSeek, Mistral, Together) — or run a local model with [Ollama](https://ollama.com) for a fully private, offline setup. Your key stays on your machine.
+- **Modes tailor the answers.** Switch between presets like Interview, Coding Interview, or Sales, each with its own instructions and reference files.
+
+---
+
+## Download
+
+Grab the right file for your computer from the **[latest release](https://github.com/aikay-source/open-cluely/releases/latest)**:
+
+| Your computer | Download |
+|---------------|----------|
+| **Mac** (Apple Silicon — M1/M2/M3/M4) | [`Open-Cluely-1.0.1-arm64.dmg`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.1/Open-Cluely-1.0.1-arm64.dmg) |
+| **Windows** (installer) | [`Open-Cluely-Setup-1.0.1.exe`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.1/Open-Cluely-Setup-1.0.1.exe) |
+| **Windows** (portable, no install) | [`Open-Cluely-1.0.1.exe`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.1/Open-Cluely-1.0.1.exe) |
+
+> The app isn't signed with a paid developer certificate yet, so your computer will show a one-time "unknown developer" warning the first time you open it. The install steps below show how to get past it. It's safe — the warning just means we haven't paid Apple/Microsoft for a signing certificate.
+
+---
+
+## Install on Mac
+
+1. Download the **`.dmg`** file above.
+2. Double-click it, then drag **Open Cluely** into your **Applications** folder.
+3. The first time you open it, macOS blocks unsigned apps. To get past it: open your **Applications** folder, **right-click** (or Control-click) **Open Cluely**, and choose **Open**. Click **Open** again in the dialog. You only need to do this once.
+4. If you want it to read your screen, grant permission: **System Settings → Privacy & Security → Screen Recording**, and turn on **Open Cluely**. Quit and reopen the app after granting it.
+
+> Apple Silicon only for now (M1 and newer). Intel Macs aren't supported by the current build.
+
+## Install on Windows
+
+1. Download the **installer** (`Open-Cluely-Setup-...exe`) or the **portable** version (`Open-Cluely-...exe`).
+2. Run the file. Windows SmartScreen may show a blue "Windows protected your PC" box — click **More info**, then **Run anyway**. (One-time, for the same unsigned-app reason.)
+3. The installer walks you through setup. The portable version just runs directly — no installation.
+
+---
+
+## How to use it
+
+### 1. Connect your AI
+
+Open Cluely needs an AI brain to answer. Open **Settings → AI Model** and either:
+
+- **Cloud:** pick a provider, paste your **API key**, choose a model, and click **Save**. (Get a key from your provider — e.g. [OpenAI](https://platform.openai.com/api-keys), [OpenRouter](https://openrouter.ai/keys), or [Google AI Studio](https://aistudio.google.com/apikey).)
+- **Local:** install [Ollama](https://ollama.com), then choose **Local** and pick a model you've pulled. Nothing leaves your computer.
+
+Your API key is stored only on your own machine and is sent only to the provider you chose.
+
+### 2. Ask a question
+
+Click **Ask**, type your question, and press **Send** (or `Cmd/Ctrl + Enter`). The answer appears right in the floating panel.
+
+### 3. Let it see or hear
+
+- Turn on **Use screen as context** so it answers based on what's on your screen.
+- Use **Listen** to bring in audio (great for calls and interviews).
+- Pick a **Mode** to shape the tone and focus of the answers.
+
+### Keyboard shortcuts
+
+On Windows use `Ctrl`, on Mac use `Cmd`.
+
+| Shortcut | What it does |
+|----------|--------------|
+| `Cmd/Ctrl + B` | Show or hide the assistant |
+| `Cmd/Ctrl + Shift + Space` | Bring it to the center and show it |
+| `Cmd/Ctrl + Enter` | Send / ask with the current screen |
+| `Cmd/Ctrl + R` | Clear and start fresh |
+| `Cmd/Ctrl + Arrow keys` | Move the window around the screen |
+
+---
+
+## Screenshots
+
+**Settings — General**
+
+![Open Cluely settings, General page](docs/screenshots/settings-general.jpg)
+
+**Modes — tailor the assistant for different situations**
+
+![Open Cluely modes page](docs/screenshots/modes.jpg)
+
+---
+
+## Privacy
+
+- Your AI **API key is stored locally** on your computer and is never sent anywhere except directly to the AI provider you pick.
+- Choose **local (Ollama)** mode to keep everything on your machine with no cloud calls at all.
+- **Undetectability** keeps the window out of screen-share and recordings.
+
+---
+
+## Build from source
+
+Prefer to run it yourself from the code? You'll need [Node.js](https://nodejs.org) and Git.
+
+```bash
+git clone https://github.com/aikay-source/open-cluely.git
+cd open-cluely
+npm install
+```
+
+If you hit a Sharp/native build error during install:
+
+```bash
+SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm install --ignore-scripts
+npm rebuild sharp
+```
+
+You can set a default provider with a `.env` file in the project root (optional — you can also do this in-app under Settings → AI Model):
+
+```env
+# Cloud (Gemini)
+GEMINI_API_KEY=your_api_key_here
+
+# Or OpenAI-compatible (OpenAI, OpenRouter, Groq, ...)
+OPENAI_API_KEY=your_api_key_here
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+
+# Or local Ollama
+USE_OLLAMA=true
+OLLAMA_MODEL=llama3.2
+```
+
+Then run it in development, or build your own installer:
+
+```bash
+npm start          # run in development
+npm run app:build  # build a packaged app for your OS
+```
+
+---
+
+## Credits
+
+Open Cluely is an open-source take on the invisible-assistant idea, forked and reworked from [Prat011/free-cluely](https://github.com/Prat011/free-cluely). Built with Electron, React, and TypeScript.
