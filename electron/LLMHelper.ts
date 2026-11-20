@@ -20,7 +20,12 @@ export class LLMHelper {
   private openai: OpenAI | null = null
   private openaiModel: string = "gpt-4o-mini"
   private openaiTranscribeModel: string = "whisper-1"
-  private readonly systemPrompt = `You are Wingman AI, a helpful, proactive assistant for any kind of problem or situation (not just coding). For any user input, analyze the situation, provide a clear problem statement, relevant context, and suggest several possible responses or actions the user could take next. Always explain your reasoning. Present your suggestions as a list of options or next steps.`
+  // Default style for chat and screen-context: direct, grounded, no scaffolding.
+  private readonly systemPrompt = `You are Open Cluely, a sharp and concise desktop assistant. Answer the user's actual question directly and get to the point. Do not restate the question, do not add a "problem statement" or "context" section, and do not list options or next steps unless the user asks for them. When a screenshot of the user's screen is attached, treat it as exactly what they are looking at right now: read it carefully and ground your answer in what is actually visible — the apps, windows, text, code, or questions on screen. If the user asks what you see, describe it plainly and specifically. Write naturally, like a knowledgeable person glancing at their screen.`
+  // Structured, proactive style reserved for live audio (meetings, interviews) where suggested responses help.
+  private readonly audioSystemPrompt = `You are Wingman AI, a helpful, proactive assistant for any kind of problem or situation (not just coding). For any user input, analyze the situation, provide a clear problem statement, relevant context, and suggest several possible responses or actions the user could take next. Always explain your reasoning. Present your suggestions as a list of options or next steps.`
+  // Persona for "use screen": the user is usually in a live interview/assessment and needs the answer now.
+  private readonly screenSystemPrompt = `You are an expert interview and assessment copilot. The user has shared their screen during a live interview or test, and whatever task, question, problem, or prompt is on it is being asked of the user right now. Give the single best answer or solution the user can say or type immediately: the actual answer, working code, the correct choice, or the exact wording a strong candidate would give. Lead with the answer, then at most one or two lines of the key reasoning only if it helps the user defend it. Never describe the screen, never explain how they "could" approach it, never ask clarifying questions, and never hand back a blank template to fill in. If something is ambiguous, state the most reasonable assumption in a few words and answer anyway. For multiple-choice or comparison tasks, give the choice and a one-line why. For coding tasks, give correct, runnable code. Be concise and match the question's own domain and format. The one exception: if the user explicitly asks what you see or what's on their screen, describe what's visible instead of solving.`
   private useOllama: boolean = false
   private ollamaModel: string = "llama3.2"
   private ollamaUrl: string = "http://localhost:11434"
@@ -52,11 +57,11 @@ export class LLMHelper {
   }
 
   // One chat call for any OpenAI-compatible vendor. content is a string or a vision message array.
-  private async callOpenAI(content: any): Promise<string> {
+  private async callOpenAI(content: any, system: string = this.systemPrompt): Promise<string> {
     const result = await this.openai!.chat.completions.create({
       model: this.openaiModel,
       messages: [
-        { role: "system", content: this.systemPrompt },
+        { role: "system", content: system },
         { role: "user", content }
       ]
     })
@@ -234,7 +239,7 @@ export class LLMHelper {
           mimeType: "audio/mp3"
         }
       };
-      const prompt = `${this.systemPrompt}\n\nDescribe this audio clip in a short, concise answer. In addition to your main answer, suggest several possible actions or responses the user could take next based on the audio. Do not return a structured JSON object, just answer naturally as you would to a user.`;
+      const prompt = `${this.audioSystemPrompt}\n\nDescribe this audio clip in a short, concise answer. In addition to your main answer, suggest several possible actions or responses the user could take next based on the audio. Do not return a structured JSON object, just answer naturally as you would to a user.`;
       const result = await this.model.generateContent([prompt, audioPart]);
       const response = await result.response;
       const text = response.text();
@@ -253,7 +258,7 @@ export class LLMHelper {
           mimeType
         }
       };
-      const prompt = `${this.systemPrompt}\n\nDescribe this audio clip in a short, concise answer. In addition to your main answer, suggest several possible actions or responses the user could take next based on the audio. Do not return a structured JSON object, just answer naturally as you would to a user and be concise.`;
+      const prompt = `${this.audioSystemPrompt}\n\nDescribe this audio clip in a short, concise answer. In addition to your main answer, suggest several possible actions or responses the user could take next based on the audio. Do not return a structured JSON object, just answer naturally as you would to a user and be concise.`;
       const result = await this.model.generateContent([prompt, audioPart]);
       const response = await result.response;
       const text = response.text();
@@ -323,19 +328,22 @@ export class LLMHelper {
   }
 
   // Ask with a screenshot of the screen attached as context (screen-context toggle ON).
+  // Uses the interview/assessment solver persona (screenSystemPrompt), not the general one.
   public async askWithImage(prompt: string, imageBase64: string): Promise<string> {
+    const q = prompt && prompt.trim() ? prompt.trim() : "Solve the task shown on my screen."
+    const framed = `This image is my screen right now.\n\n${q}`
     if (this.openai) {
       return this.callOpenAI([
-        { type: "text", text: prompt },
+        { type: "text", text: framed },
         { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } }
-      ]);
+      ], this.screenSystemPrompt);
     }
     if (this.useOllama) {
-      // Ollama text model can't see images; fall back to text-only.
-      return this.callOllama(prompt);
+      // Ollama text model can't see images; fall back to text-only with the same persona.
+      return this.callOllama(`${this.screenSystemPrompt}\n\n${framed}`);
     }
     const result = await this.model!.generateContent([
-      `${this.systemPrompt}\n\n${prompt}`,
+      `${this.screenSystemPrompt}\n\n${framed}`,
       { inlineData: { data: imageBase64, mimeType: "image/png" } }
     ]);
     return (await result.response).text();

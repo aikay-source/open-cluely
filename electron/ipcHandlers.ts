@@ -139,6 +139,8 @@ export function initializeIpcHandlers(appState: AppState): void {
   });
 
   // Ask with the current screen attached (screen-context toggle ON).
+  // Deliberately NOT wrapped in withMode: the screen is the task, and a mode persona
+  // (e.g. "I am in a behavioral interview") hijacks it into asking questions instead of solving.
   ipcMain.handle("ask-with-screen", async (event, message: string) => {
     let imageBase64: string
     try {
@@ -147,7 +149,7 @@ export function initializeIpcHandlers(appState: AppState): void {
     } catch {
       return "I couldn't capture your screen. Turn on Open Cluely under System Settings → Privacy & Security → Screen Recording, then try again."
     }
-    return appState.processingHelper.getLLMHelper().askWithImage(withMode(message), imageBase64)
+    return appState.processingHelper.getLLMHelper().askWithImage(message, imageBase64)
   });
 
   // Warm up ScreenCaptureKit (and prompt if needed) when the screen-context toggle turns on.
