@@ -30,8 +30,7 @@ Grab the right file for your computer from the **[latest release](https://github
 | Your computer | Download |
 |---------------|----------|
 | **Mac** (Apple Silicon — M1/M2/M3/M4) | [`Open-Cluely-1.0.2-arm64.dmg`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.2/Open-Cluely-1.0.2-arm64.dmg) |
-| **Windows** (installer) | [`Open-Cluely-Setup-1.0.2.exe`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.2/Open-Cluely-Setup-1.0.2.exe) |
-| **Windows** (portable, no install) | [`Open-Cluely-1.0.2.exe`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.2/Open-Cluely-1.0.2.exe) |
+| **Windows** | [`Open-Cluely-Setup-1.0.2.exe`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.2/Open-Cluely-Setup-1.0.2.exe) |
 
 > The app isn't signed with a paid developer certificate yet, so your computer will show a one-time "unknown developer" warning the first time you open it. The install steps below show how to get past it. It's safe — the warning just means we haven't paid Apple/Microsoft for a signing certificate.
 
@@ -48,9 +47,9 @@ Grab the right file for your computer from the **[latest release](https://github
 
 ## Install on Windows
 
-1. Download the **installer** (`Open-Cluely-Setup-...exe`) or the **portable** version (`Open-Cluely-...exe`).
+1. Download the **installer** (`Open-Cluely-Setup-...exe`) above.
 2. Run the file. Windows SmartScreen may show a blue "Windows protected your PC" box — click **More info**, then **Run anyway**. (One-time, for the same unsigned-app reason.)
-3. The installer walks you through setup. The portable version just runs directly — no installation.
+3. The installer walks you through setup.
 
 ---
 
