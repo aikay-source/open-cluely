@@ -29,8 +29,8 @@ Grab the right file for your computer from the **[latest release](https://github
 
 | Your computer | Download |
 |---------------|----------|
-| **Mac** (Apple Silicon — M1/M2/M3/M4) | [`Open-Cluely-1.0.7-arm64.dmg`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.7/Open-Cluely-1.0.7-arm64.dmg) |
-| **Windows** | [`Open-Cluely-Setup-1.0.7.exe`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.7/Open-Cluely-Setup-1.0.7.exe) |
+| **Mac** (Apple Silicon — M1/M2/M3/M4) | [`Open-Cluely-1.0.8-arm64.dmg`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.8/Open-Cluely-1.0.8-arm64.dmg) |
+| **Windows** | [`Open-Cluely-Setup-1.0.8.exe`](https://github.com/aikay-source/open-cluely/releases/download/v1.0.8/Open-Cluely-Setup-1.0.8.exe) |
 
 > The app isn't signed with a paid developer certificate yet, so your computer will show a one-time "unknown developer" warning the first time you open it. The install steps below show how to get past it. It's safe — the warning just means we haven't paid Apple/Microsoft for a signing certificate.
 

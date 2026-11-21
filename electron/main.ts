@@ -6,9 +6,12 @@ import { ShortcutsHelper } from "./shortcuts"
 import { ProcessingHelper } from "./ProcessingHelper"
 import { initAutoUpdate } from "./updater"
 
-// 32x32 app icon, inlined so the tray icon is present without a packaged-asset path.
-const TRAY_ICON_DATA_URL =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAIppAACKaQGxZbMyAAABYUlEQVR4nO1Wy2qDQBSddBG7SRexELuN/Z1suksWLQbiDP2J2F9wISQgZOnGD5H+gZ/hSvBxy70wQROwEo2T0B44eDj3Oh4fMw4DxWD/AeAeApRlCXme14he23rnANcEayrKu4jjGIIggDAMiajRk2iq//YkWFOxKAo6ci6AMQaTyRMRNef82If6vC5qY3QKYNs2aNojGMYLETV6Ek31XgIIIWA81mA2M4io5R3KJ3Rax3N6C2BZaxiNHmA61YmoLcs69qE+r6/7C7DdOjTwfG4SUaMn4ThfoOvPYJqvRNTodQ4ggYOkaVpjdeAsyyBJkhrR620aRtE3eN4OfP9ARI2e7Gm76FwcwHU9WCzeYLl8J6JGrxrglL0G2O99WK0+YLP5JKJGr9pzKdhdBHBVv4JI1UeofBoWrRci5zoLUXErS7FQ/TOyVf+OuaoNSal6SzYEWJumv7stHwJskKvccoAfqf9+zvv4FSsAAAAASUVORK5CYII="
+// Menu-bar tray icon as a template image (monochrome + alpha) so macOS sizes and tints it to
+// match the bar — a full-size opaque icon showed up as an oversized white box. 16pt + @2x.
+const TRAY_ICON_16 =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAjklEQVR4nL3TsQrCMBDG8V+bWRdfwrVTEVwV6Rv02aSbDyU4Cb6HUrgODboY6x8+Lne5C9wlYQEq1KHqjb8cddgGZwzYhoaINVnujBS2xzPUhSa/z3JnTMEjrrhhhz0euOOU5c6YBrTBITSuR9ZYfSqU9dXiEmqzPYseUJW2kEqHmEqvsQ779UP6Gf/9TC8E3R8JNVrrcgAAAABJRU5ErkJggg=="
+const TRAY_ICON_32 =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAA+ElEQVR4nO2WPQrCQBSEv42ClcfwCF7ExtoikMI76C2SNFZ6AO+jtRZJYxUbFWECYbFYyYaNmIGPF+aFZdhkf2DQIDcZYGRhvuj/rozqDFgCC7GUh0O/1UxEqhnwBG7iKQ+HfuQjQA5UwEVU8nDoewmQAnfgKu4fZsDupz4D7IAHUIqHPBz6XgJsNfBZlPJqbYACOIlCXusANAaZWDQHHgNTi7fXWkZ1DiTASiTy6nc623SM6ho4AgdxlNcMYOM1QAzstbRyPcfWO53I9CXAOvQnmIf6CYMvwyj0RhT1ZStOQx9GeejjOAt1ITGhr2S9kfnba/kgutYLf157haLP3goAAAAASUVORK5CYII="
 
 export class AppState {
   private static instance: AppState | null = null
@@ -204,8 +207,10 @@ export class AppState {
 
   public createTray(): void {
     // An empty tray image is invisible on Windows, which left Windows users with no way to
-    // reach the Quit menu. Ship a real 32x32 icon inline (no packaged-asset path to resolve).
-    const trayImage = nativeImage.createFromDataURL(TRAY_ICON_DATA_URL)
+    // reach the Quit menu. Ship a real icon inline (no packaged-asset path to resolve).
+    const trayImage = nativeImage.createFromDataURL(TRAY_ICON_16)
+    trayImage.addRepresentation({ scaleFactor: 2, dataURL: TRAY_ICON_32 })
+    trayImage.setTemplateImage(true) // macOS tints/sizes it to the menu bar (ignored on Windows)
 
     this.tray = new Tray(trayImage)
     
@@ -259,10 +264,8 @@ export class AppState {
     this.tray.setContextMenu(contextMenu)
     
     // Set a title for macOS (will appear in menu bar)
-    if (process.platform === 'darwin') {
-      this.tray.setTitle('IC')
-    }
-    
+    // No text label — the icon alone matches the other menu-bar items.
+
     // Double-click to show window
     this.tray.on('double-click', () => {
       this.centerAndShowWindow()

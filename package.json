@@ -1,6 +1,6 @@
 {
   "name": "interview-coder",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Open Cluely desktop app",
   "author": "aikay-source",
   "main": "./dist-electron/main.js",
