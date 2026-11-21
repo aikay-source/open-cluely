@@ -182,11 +182,14 @@ const AIModelSettings: React.FC = () => {
   const [loadingModels, setLoadingModels] = useState(false)
   const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle")
   const [error, setError] = useState("")
+  const [transcribeKey, setTranscribeKey] = useState("")
+  const [hasTranscribeKey, setHasTranscribeKey] = useState(false)
   const provider = CLOUD_PROVIDERS.find((p) => p.id === providerId) || CLOUD_PROVIDERS[0]
 
   useEffect(() => {
     window.electronAPI.invoke("get-ai-config").then((c: any) => {
       if (!c) return
+      setHasTranscribeKey(!!c.hasTranscribeKey)
       if (c.kind === "local") {
         setKind("local"); setOllamaUrl(c.ollamaUrl || "http://localhost:11434"); setOllamaModel(c.model || "")
       } else {
@@ -220,11 +223,17 @@ const AIModelSettings: React.FC = () => {
 
   const save = async () => {
     setStatus("saving"); setError("")
-    const cfg = kind === "local"
+    const cfg: any = kind === "local"
       ? { kind: "local", engine: "ollama", provider: "ollama", apiKey: "", model: ollamaModel, ollamaUrl }
       : { kind: "cloud", engine: provider.engine, provider: provider.id, apiKey, baseURL: provider.baseURL, model, transcribeModel: provider.transcribeModel }
+    // Optional dedicated fast speech-to-text (Groq), independent of the chat provider above.
+    if (transcribeKey || hasTranscribeKey) {
+      cfg.transcribeBaseURL = "https://api.groq.com/openai/v1"
+      cfg.transcribeModel = "whisper-large-v3-turbo"
+      if (transcribeKey) cfg.transcribeApiKey = transcribeKey
+    }
     const r = await window.electronAPI.invoke("set-ai-config", cfg).catch((e: any) => ({ success: false, error: String(e) }))
-    if (r?.success) { setStatus("ok"); setApiKey(""); if (kind === "cloud") setHasKey(true) }
+    if (r?.success) { setStatus("ok"); setApiKey(""); if (transcribeKey) setHasTranscribeKey(true); setTranscribeKey(""); if (kind === "cloud") setHasKey(true) }
     else { setStatus("error"); setError(r?.error || "Could not connect to the provider") }
   }
 
@@ -275,6 +284,14 @@ const AIModelSettings: React.FC = () => {
           </div>
         </>
       )}
+
+      <div className="border-t border-white/[0.06] pt-3">
+        <label className="text-[12px] text-white/55">Speech-to-text (optional)</label>
+        <input type="password" value={transcribeKey} onChange={(e) => setTranscribeKey(e.target.value)}
+          placeholder={hasTranscribeKey ? "•••••• Groq key saved — type to replace" : "Paste a Groq API key for fast, accurate Listen"}
+          className={`mt-1 ${AI_INPUT}`} />
+        <p className="mt-1 text-[11px] text-white/35">Uses Groq whisper-large-v3-turbo just for Listen — much faster and more accurate than the default. Get a free key at console.groq.com/keys.</p>
+      </div>
 
       <div className="flex items-center gap-3 pt-1">
         <button type="button" onClick={save} disabled={status === "saving" || !canSave}

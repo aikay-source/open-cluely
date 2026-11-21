@@ -118,8 +118,8 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   })
 
-  ipcMain.handle("transcribe-audio", (event, data: string, mimeType: string) =>
-    appState.processingHelper.getLLMHelper().transcribeAudio(data, mimeType)
+  ipcMain.handle("transcribe-audio", (event, data: string, mimeType: string, context?: string) =>
+    appState.processingHelper.getLLMHelper().transcribeAudio(data, mimeType, context)
   )
 
   // Prepend the active mode's instructions + reference files to a prompt.
@@ -296,16 +296,19 @@ export function initializeIpcHandlers(appState: AppState): void {
   ipcMain.handle("get-ai-config", () => {
     const cfg = AIConfigStore.read()
     if (!cfg) return null
-    const { apiKey, ...rest } = cfg
-    return { ...rest, hasKey: !!apiKey }
+    // Never return either key to the renderer — expose only whether one is saved.
+    const { apiKey, transcribeApiKey, ...rest } = cfg
+    return { ...rest, hasKey: !!apiKey, hasTranscribeKey: !!transcribeApiKey }
   })
   ipcMain.handle("set-ai-config", async (_e, cfg: AIConfig) => {
     try {
+      const prev = AIConfigStore.read()
       // Keep the saved key when the user edits without re-entering it.
       if (!cfg.apiKey && cfg.engine !== "ollama") {
-        const prev = AIConfigStore.read()
         if (prev?.apiKey) cfg.apiKey = prev.apiKey
       }
+      // Same for the optional dedicated transcription key.
+      if (!cfg.transcribeApiKey && prev?.transcribeApiKey) cfg.transcribeApiKey = prev.transcribeApiKey
       // Never persist a cloud provider without a key — it would throw when rebuilt on next launch.
       if (!cfg.apiKey && cfg.engine !== "ollama") {
         return { success: false, error: "An API key is required for cloud providers." }

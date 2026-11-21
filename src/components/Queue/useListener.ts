@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react"
 
-// Each chunk is a fresh recorder so it is a complete audio file Gemini can decode.
-const CHUNK_MS = 8000
+// Each chunk is a fresh recorder so it is a complete audio file the model can decode.
+// Shorter chunks cut the lag between speech and transcript; the previous chunk's tail is fed
+// back as context so words split across the boundary still resolve.
+const CHUNK_MS = 4000
 
 export const formatElapsed = (s: number) =>
   `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`
@@ -13,6 +15,7 @@ export function useListener(onTranscript: (text: string, atSeconds: number) => v
   const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const startedAt = useRef(0)
+  const lastText = useRef("") // tail of the last transcript, used to prime the next chunk
   const callback = useRef(onTranscript)
   callback.current = onTranscript
 
@@ -32,8 +35,8 @@ export function useListener(onTranscript: (text: string, atSeconds: number) => v
       const reader = new FileReader()
       reader.onloadend = async () => {
         try {
-          const text = await window.electronAPI.invoke("transcribe-audio", (reader.result as string).split(",")[1], e.data.type)
-          if (text) callback.current(text, chunkStart)
+          const text = await window.electronAPI.invoke("transcribe-audio", (reader.result as string).split(",")[1], e.data.type, lastText.current)
+          if (text) { lastText.current = text; callback.current(text, chunkStart) }
         } catch {
           setError("Transcription failed.")
         }
@@ -51,8 +54,14 @@ export function useListener(onTranscript: (text: string, atSeconds: number) => v
     try {
       let deviceId = ""
       try { deviceId = localStorage.getItem("ocMicId") || "" } catch { /* ignore */ }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: deviceId ? { deviceId: { exact: deviceId } } : true })
+      // Clean up the input so transcription is more accurate on calls.
+      const audio: MediaTrackConstraints = {
+        echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1
+      }
+      if (deviceId) audio.deviceId = { exact: deviceId }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio })
       streamRef.current = stream
+      lastText.current = ""
       startedAt.current = Date.now()
       setError(null)
       recordChunk(stream)

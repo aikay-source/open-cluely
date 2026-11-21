@@ -15,9 +15,18 @@ export interface OpenAIConfig {
   transcribeModel?: string
 }
 
+// Optional dedicated speech-to-text provider (e.g. Groq whisper-large-v3-turbo), independent
+// of the chat provider.
+export interface TranscribeConfig {
+  apiKey?: string
+  baseURL?: string
+  model?: string
+}
+
 export class LLMHelper {
   private model: GenerativeModel | null = null
   private openai: OpenAI | null = null
+  private transcribeOpenai: OpenAI | null = null // dedicated speech-to-text client, if configured
   private openaiModel: string = "gpt-4o-mini"
   private openaiTranscribeModel: string = "whisper-1"
   // Default style for chat and screen-context: direct, grounded, no scaffolding.
@@ -31,14 +40,20 @@ export class LLMHelper {
   private ollamaUrl: string = "http://localhost:11434"
   private geminiModel: string = "gemini-3.1-flash-lite"
 
-  constructor(apiKey?: string, useOllama: boolean = false, ollamaModel?: string, ollamaUrl?: string, openaiConfig?: OpenAIConfig, geminiModel?: string) {
+  constructor(apiKey?: string, useOllama: boolean = false, ollamaModel?: string, ollamaUrl?: string, openaiConfig?: OpenAIConfig, geminiModel?: string, transcribeConfig?: TranscribeConfig) {
     this.useOllama = useOllama
     if (geminiModel) this.geminiModel = geminiModel
+
+    // A dedicated transcription provider works regardless of the chat engine above.
+    if (transcribeConfig?.apiKey) {
+      this.transcribeOpenai = new OpenAI({ apiKey: transcribeConfig.apiKey, baseURL: transcribeConfig.baseURL })
+      this.openaiTranscribeModel = transcribeConfig.model || "whisper-large-v3-turbo"
+    }
 
     if (openaiConfig) {
       this.openai = new OpenAI({ apiKey: openaiConfig.apiKey, baseURL: openaiConfig.baseURL })
       if (openaiConfig.model) this.openaiModel = openaiConfig.model
-      if (openaiConfig.transcribeModel) this.openaiTranscribeModel = openaiConfig.transcribeModel
+      if (openaiConfig.transcribeModel && !this.transcribeOpenai) this.openaiTranscribeModel = openaiConfig.transcribeModel
       console.log(`[LLMHelper] Using OpenAI-compatible provider: ${this.openaiModel}${openaiConfig.baseURL ? ` @ ${openaiConfig.baseURL}` : ""}`)
     } else if (useOllama) {
       this.ollamaUrl = ollamaUrl || "http://localhost:11434"
@@ -269,12 +284,20 @@ export class LLMHelper {
     }
   }
 
-  public async transcribeAudio(data: string, mimeType: string): Promise<string> {
-    if (this.openai) {
+  // `context` is the tail of the previous chunk's transcript — passed as a Whisper prompt so words
+  // split across the chunk boundary resolve correctly and the model keeps the right vocabulary.
+  public async transcribeAudio(data: string, mimeType: string, context?: string): Promise<string> {
+    const client = this.transcribeOpenai || this.openai
+    if (client) {
       // Needs a vendor with a Whisper-style transcription endpoint (OpenAI, Groq). Others will error.
       const ext = mimeType.includes("webm") ? "webm" : mimeType.includes("mp4") ? "mp4" : mimeType.includes("ogg") ? "ogg" : "wav"
       const file = await toFile(Buffer.from(data, "base64"), `audio.${ext}`, { type: mimeType })
-      const result = await this.openai.audio.transcriptions.create({ file, model: this.openaiTranscribeModel })
+      const result = await client.audio.transcriptions.create({
+        file,
+        model: this.openaiTranscribeModel,
+        language: "en",
+        ...(context ? { prompt: context.slice(-400) } : {})
+      })
       return (result.text || "").trim()
     }
     const prompt = "Transcribe this audio word for word. Return only the spoken words. If there is no clear speech, return an empty string."

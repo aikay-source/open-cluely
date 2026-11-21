@@ -36,11 +36,15 @@ export class ProcessingHelper {
   }
 
   private static buildFromConfig(cfg: AIConfig): LLMHelper {
+    // Optional dedicated speech-to-text provider, passed through on every engine.
+    const tc = cfg.transcribeApiKey
+      ? { apiKey: cfg.transcribeApiKey, baseURL: cfg.transcribeBaseURL, model: cfg.transcribeModel }
+      : undefined
     if (cfg.engine === "ollama") {
-      return new LLMHelper(undefined, true, cfg.model || undefined, cfg.ollamaUrl || "http://localhost:11434")
+      return new LLMHelper(undefined, true, cfg.model || undefined, cfg.ollamaUrl || "http://localhost:11434", undefined, undefined, tc)
     }
     if (cfg.engine === "gemini") {
-      return new LLMHelper(cfg.apiKey, false, undefined, undefined, undefined, cfg.model || undefined)
+      return new LLMHelper(cfg.apiKey, false, undefined, undefined, undefined, cfg.model || undefined, tc)
     }
     // OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, ...)
     return new LLMHelper(undefined, false, undefined, undefined, {
@@ -48,7 +52,7 @@ export class ProcessingHelper {
       baseURL: cfg.baseURL,
       model: cfg.model,
       transcribeModel: cfg.transcribeModel
-    })
+    }, undefined, tc)
   }
 
   private static buildFromEnv(): LLMHelper {

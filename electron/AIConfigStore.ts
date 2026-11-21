@@ -13,6 +13,10 @@ export interface AIConfig {
   baseURL?: string // for OpenAI-compatible providers
   model: string
   transcribeModel?: string
+  // Optional dedicated speech-to-text provider (e.g. Groq whisper-large-v3-turbo), independent
+  // of the chat provider. When transcribeApiKey is set, transcription uses this instead.
+  transcribeApiKey?: string
+  transcribeBaseURL?: string
   ollamaUrl?: string
 }
 
