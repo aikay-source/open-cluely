@@ -63,8 +63,14 @@ const Queue: React.FC<QueueProps> = ({ setView }) => {
     setPanelView("chat")
     setSettingsOpen(false)
     setChatMessages((msgs) => [...msgs, { role: "user", text: label }])
-    setChatLoading(true)
     setChatInput("")
+    // Asked about the screen while "Use screen as context" is off: say so instead of guessing.
+    const asked = `${label} ${prompt}`
+    if (!screenContext && /\b(what do you see|what can you see|what are you seeing|what'?s on (my|the) screen|what is on (my|the) screen|see (my|the) screen|read (my|the) screen|look at (my|the) screen)\b/i.test(asked)) {
+      setChatMessages((msgs) => [...msgs, { role: "gemini", text: "Screen access is currently turned off, so I can’t see what’s on your screen now. Turn on “Use screen as context” (the image icon below) and ask again." }])
+      return
+    }
+    setChatLoading(true)
     try {
       // When screen-context is on, attach a capture of the screen to the ask.
       const channel = screenContext ? "ask-with-screen" : "gemini-chat"

@@ -145,11 +145,16 @@ export function initializeIpcHandlers(appState: AppState): void {
     let imageBase64: string
     try {
       const screenshotPath = await appState.takeScreenshot()
-      imageBase64 = (await fs.promises.readFile(screenshotPath)).toString("base64")
+      const raw = await fs.promises.readFile(screenshotPath)
+      // Downscale to a compact JPEG: a full-res retina PNG (~1MB base64) can be silently dropped
+      // by some vision endpoints, leaving the model with no image ("I can't see your screen").
+      const sharp = require("sharp")
+      const small = await sharp(raw).resize({ width: 1600, withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer()
+      imageBase64 = small.toString("base64")
     } catch {
       return "I couldn't capture your screen. Turn on Open Cluely under System Settings → Privacy & Security → Screen Recording, then try again."
     }
-    return appState.processingHelper.getLLMHelper().askWithImage(message, imageBase64)
+    return appState.processingHelper.getLLMHelper().askWithImage(message, imageBase64, "image/jpeg")
   });
 
   // Warm up ScreenCaptureKit (and prompt if needed) when the screen-context toggle turns on.

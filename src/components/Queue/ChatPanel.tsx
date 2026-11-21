@@ -135,6 +135,7 @@ const ChatPanel: React.FC<Props> = (p) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null)
   // Stick to the bottom only when the user is already there, so scrolling up to read stays put.
   const onScroll = () => {
     const el = scrollRef.current
@@ -256,7 +257,18 @@ const ChatPanel: React.FC<Props> = (p) => {
                   {m.role === "user" ? (
                     <div className="max-w-[85%] whitespace-pre-line rounded-2xl bg-[oklch(68%_0.15_237_/_0.3)] px-3 py-2 text-[14px] text-white leading-6">{m.text}</div>
                   ) : (
-                    <div className="max-w-[90%] whitespace-pre-line rounded-2xl bg-white/[0.06] px-4 py-3 text-[14px] text-white/85 leading-6">{m.text}</div>
+                    <div className="flex max-w-[90%] flex-col items-start gap-1">
+                      <div className="whitespace-pre-line rounded-2xl bg-white/[0.06] px-4 py-3 text-[14px] text-white/85 leading-6">{m.text}</div>
+                      <button
+                        type="button"
+                        aria-label="Copy"
+                        title="Copy"
+                        onClick={() => { navigator.clipboard.writeText(m.text); setCopiedIdx(i); setTimeout(() => setCopiedIdx((c) => (c === i ? null : c)), 1500) }}
+                        className="ml-1 inline-flex items-center rounded-md p-1 text-white/40 transition-colors hover:text-white/80"
+                      >
+                        {copiedIdx === i ? <LuCheck className="size-3.5" /> : <LuCopy className="size-3.5" />}
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}

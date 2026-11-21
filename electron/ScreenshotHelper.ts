@@ -73,14 +73,16 @@ export class ScreenshotHelper {
   // macOS granted Screen Recording — unlike a spawned `screencapture`, whose permission is
   // checked against the subprocess and fails even when the app itself is granted.
   private async captureScreenPng(): Promise<Buffer> {
-    const primary = screen.getPrimaryDisplay()
-    const { width, height } = primary.size
-    const scale = primary.scaleFactor || 1
+    // Capture the display the user is actually on (cursor's screen), not always the primary —
+    // otherwise a multi-monitor user asking about their laptop screen gets the main monitor.
+    const target = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+    const { width, height } = target.size
+    const scale = target.scaleFactor || 1
     const sources = await desktopCapturer.getSources({
       types: ["screen"],
       thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
     })
-    const img = sources[0]?.thumbnail
+    const img = (sources.find((s) => String(s.display_id) === String(target.id)) || sources[0])?.thumbnail
     if (!img || img.isEmpty()) throw new Error("SCREEN_PERMISSION")
     const buf = img.toPNG()
     if (buf.length < 1000) throw new Error("SCREEN_PERMISSION")

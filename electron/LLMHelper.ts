@@ -329,13 +329,13 @@ export class LLMHelper {
 
   // Ask with a screenshot of the screen attached as context (screen-context toggle ON).
   // Uses the interview/assessment solver persona (screenSystemPrompt), not the general one.
-  public async askWithImage(prompt: string, imageBase64: string): Promise<string> {
+  public async askWithImage(prompt: string, imageBase64: string, mime: string = "image/png"): Promise<string> {
     const q = prompt && prompt.trim() ? prompt.trim() : "Solve the task shown on my screen."
     const framed = `This image is my screen right now.\n\n${q}`
     if (this.openai) {
       return this.callOpenAI([
         { type: "text", text: framed },
-        { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } }
+        { type: "image_url", image_url: { url: `data:${mime};base64,${imageBase64}` } }
       ], this.screenSystemPrompt);
     }
     if (this.useOllama) {
@@ -344,7 +344,7 @@ export class LLMHelper {
     }
     const result = await this.model!.generateContent([
       `${this.screenSystemPrompt}\n\n${framed}`,
-      { inlineData: { data: imageBase64, mimeType: "image/png" } }
+      { inlineData: { data: imageBase64, mimeType: mime } }
     ]);
     return (await result.response).text();
   }
