@@ -4,8 +4,16 @@
 // Windows: full silent update — download in the background, install on restart.
 // macOS: the app is self-signed, so Squirrel can't apply updates. We only detect a newer
 // version and send the user to the download page.
-import { app, dialog, shell } from "electron"
+import { app, dialog, shell, BrowserWindow } from "electron"
 import { autoUpdater } from "electron-updater"
+
+// A parentless modal silently fails to render in this dock-hidden agent app, so always
+// attach dialogs to a live window.
+function showBox(opts: Electron.MessageBoxOptions): Promise<{ response: number }> {
+  const parent = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  const p = parent ? dialog.showMessageBox(parent, opts) : dialog.showMessageBox(opts)
+  return p as unknown as Promise<{ response: number }>
+}
 
 const RELEASES_URL = "https://github.com/aikay-source/open-cluely/releases/latest"
 const isMac = process.platform === "darwin"
@@ -18,27 +26,26 @@ export function initAutoUpdate(): void {
 
   autoUpdater.on("update-available", async (info) => {
     if (!isMac) return // Windows: autoDownload handles it; "update-downloaded" fires next
-    // Cast: the stale @types/electron in this repo mistypes showMessageBox as returning a number.
-    const { response } = (await dialog.showMessageBox({
+    const { response } = await showBox({
       type: "info",
       buttons: ["Download", "Later"],
       defaultId: 0,
       cancelId: 1,
       message: `Open Cluely ${info.version} is available.`,
       detail: "A newer version is ready. Click Download to get it."
-    })) as unknown as { response: number }
+    })
     if (response === 0) shell.openExternal(RELEASES_URL)
   })
 
   autoUpdater.on("update-downloaded", async (info) => {
-    const { response } = (await dialog.showMessageBox({
+    const { response } = await showBox({
       type: "info",
       buttons: ["Restart now", "Later"],
       defaultId: 0,
       cancelId: 1,
       message: `Open Cluely ${info.version} is ready to install.`,
       detail: "Restart the app to finish updating."
-    })) as unknown as { response: number }
+    })
     if (response === 0) autoUpdater.quitAndInstall()
   })
 
