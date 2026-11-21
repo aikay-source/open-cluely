@@ -413,6 +413,26 @@ const General: React.FC = () => {
         </div>
         <AIModelSettings />
       </section>
+
+      <section className="space-y-2">
+        <SectionTitle>Quit</SectionTitle>
+        <div className="rounded-xl bg-white/[0.035] px-4">
+          <Row
+            first
+            icon={LuPower}
+            title="Quit Open Cluely"
+            description="Fully close the app and the floating widget."
+            control={
+              <button
+                onClick={() => window.electronAPI.quitApp()}
+                className="inline-flex h-7 items-center rounded-md bg-red-500/20 px-3 text-[12px] text-red-200 hover:bg-red-500/30"
+              >
+                Quit
+              </button>
+            }
+          />
+        </div>
+      </section>
     </div>
   )
 }
