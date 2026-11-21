@@ -5,6 +5,10 @@ import { ScreenshotHelper } from "./ScreenshotHelper"
 import { ShortcutsHelper } from "./shortcuts"
 import { ProcessingHelper } from "./ProcessingHelper"
 
+// 32x32 app icon, inlined so the tray icon is present without a packaged-asset path.
+const TRAY_ICON_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAIppAACKaQGxZbMyAAABYUlEQVR4nO1Wy2qDQBSddBG7SRexELuN/Z1suksWLQbiDP2J2F9wISQgZOnGD5H+gZ/hSvBxy70wQROwEo2T0B44eDj3Oh4fMw4DxWD/AeAeApRlCXme14he23rnANcEayrKu4jjGIIggDAMiajRk2iq//YkWFOxKAo6ci6AMQaTyRMRNef82If6vC5qY3QKYNs2aNojGMYLETV6Ek31XgIIIWA81mA2M4io5R3KJ3Rax3N6C2BZaxiNHmA61YmoLcs69qE+r6/7C7DdOjTwfG4SUaMn4ThfoOvPYJqvRNTodQ4ggYOkaVpjdeAsyyBJkhrR620aRtE3eN4OfP9ARI2e7Gm76FwcwHU9WCzeYLl8J6JGrxrglL0G2O99WK0+YLP5JKJGr9pzKdhdBHBVv4JI1UeofBoWrRci5zoLUXErS7FQ/TOyVf+OuaoNSal6SzYEWJumv7stHwJskKvccoAfqf9+zvv4FSsAAAAASUVORK5CYII="
+
 export class AppState {
   private static instance: AppState | null = null
 
@@ -198,19 +202,10 @@ export class AppState {
   }
 
   public createTray(): void {
-    // Create a simple tray icon
-    const image = nativeImage.createEmpty()
-    
-    // Try to use a system template image for better integration
-    let trayImage = image
-    try {
-      // Create a minimal icon - just use an empty image and set the title
-      trayImage = nativeImage.createFromBuffer(Buffer.alloc(0))
-    } catch (error) {
-      console.log("Using empty tray image")
-      trayImage = nativeImage.createEmpty()
-    }
-    
+    // An empty tray image is invisible on Windows, which left Windows users with no way to
+    // reach the Quit menu. Ship a real 32x32 icon inline (no packaged-asset path to resolve).
+    const trayImage = nativeImage.createFromDataURL(TRAY_ICON_DATA_URL)
+
     this.tray = new Tray(trayImage)
     
     const contextMenu = Menu.buildFromTemplate([
@@ -252,7 +247,7 @@ export class AppState {
       },
       {
         label: 'Quit',
-        accelerator: 'Command+Q',
+        accelerator: 'CommandOrControl+Q',
         click: () => {
           app.quit()
         }
