@@ -4,6 +4,7 @@ import { WindowHelper } from "./WindowHelper"
 import { ScreenshotHelper } from "./ScreenshotHelper"
 import { ShortcutsHelper } from "./shortcuts"
 import { ProcessingHelper } from "./ProcessingHelper"
+import { initAutoUpdate } from "./updater"
 
 // 32x32 app icon, inlined so the tray icon is present without a packaged-asset path.
 const TRAY_ICON_DATA_URL =
@@ -292,6 +293,8 @@ async function initializeApp() {
     appState.createTray()
     // Register global shortcuts using ShortcutsHelper
     appState.shortcutsHelper.registerGlobalShortcuts()
+    // Check for a newer release (silent install on Windows, download prompt on macOS)
+    initAutoUpdate()
   })
 
   app.on("activate", () => {
