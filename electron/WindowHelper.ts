@@ -83,12 +83,14 @@ export class WindowHelper {
   public setWindowDimensions(width: number, height: number): void {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return
 
-    // Get current window position
-    const [currentX, currentY] = this.mainWindow.getPosition()
+    // Get current window bounds
+    const bounds = this.mainWindow.getBounds()
+    const currentX = bounds.x
+    const currentY = bounds.y
 
-    // Get screen dimensions
-    const primaryDisplay = screen.getPrimaryDisplay()
-    const workArea = primaryDisplay.workAreaSize
+    // Size and clamp against the display the window is actually on, not always the primary monitor,
+    // so resizing the widget (e.g. opening the chat panel) doesn't yank it back to the main screen.
+    const workArea = screen.getDisplayMatching(bounds).workArea
 
     // Use 75% width if debugging has occurred, otherwise use 60%
     const maxAllowedWidth = Math.floor(
@@ -100,9 +102,10 @@ export class WindowHelper {
     this.lastContentHeight = Math.ceil(height)
     const newHeight = Math.max(this.lastContentHeight, this.menuMinHeight)
 
-    // Center the window horizontally if it would go off screen
-    const maxX = workArea.width - newWidth
-    const newX = Math.min(Math.max(currentX, 0), maxX)
+    // Keep the window within the current display's horizontal range (offsets matter on a 2nd screen)
+    const minX = workArea.x
+    const maxX = workArea.x + workArea.width - newWidth
+    const newX = Math.min(Math.max(currentX, minX), maxX)
 
     // Update window bounds
     this.mainWindow.setBounds({
@@ -282,18 +285,20 @@ export class WindowHelper {
       return
     }
 
-    const primaryDisplay = screen.getPrimaryDisplay()
-    const workArea = primaryDisplay.workAreaSize
-    
     // Get current window size or use defaults
     const windowBounds = this.mainWindow.getBounds()
     const windowWidth = windowBounds.width || 400
     const windowHeight = windowBounds.height || 600
-    
-    // Calculate center position
-    const centerX = Math.floor((workArea.width - windowWidth) / 2)
-    const centerY = 25 // top of screen, like Cluely
-    
+
+    // Center on the display the window is currently on — not always the primary monitor — so a
+    // widget dragged to a second screen stays there when it's brought forward.
+    const display = screen.getDisplayMatching(windowBounds)
+    const workArea = display.workArea
+
+    // Calculate center position within that display's work area (offsets matter on non-primary screens)
+    const centerX = Math.floor(workArea.x + (workArea.width - windowWidth) / 2)
+    const centerY = workArea.y + 25 // near the top of whichever screen it's on
+
     // Set window position
     this.mainWindow.setBounds({
       x: centerX,
